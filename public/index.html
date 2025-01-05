@@ -1,0 +1,161 @@
+<!--
+Name: Chuanqi Ma, Cecelia Chen
+Date: December 10, 2024
+Section: CSE 154 AB Peter Oh
+This is the HTML structure for a cosmetics shopping website,featuring sections
+for searching products, viewing categories, product details, reviews, and managing
+a shopping cart or basket.
+-->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link href="style.css" rel="stylesheet">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="anonymous">
+  <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Courier+Prime:ital,wght@0,400;0,700;1,400;1,700&family=Parkinsans:wght@300..800&family=Roboto:ital,wght@0,100;0,300;0,400;0,500;0,700;0,900;1,100;1,300;1,400;1,500;1,700;1,900&family=Share+Tech+Mono&family=Squada+One&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200&icon_names=grade">
+  <script src="index.js"></script>
+  <title>Cosmetic Shopping</title>
+</head>
+<body>
+  <section id="top">
+    <div class="cm-beauty">CM Beauty</div>
+    <form class="search" id="search-form">
+      <input type="text" id="search-input" name="query" placeholder="Search by name or brand">
+      <select id="search-type" name="type">
+        <option value="all">All Types</option>
+        <option value="blush">Blush</option>
+        <option value="foundation">Foundation</option>
+        <option value="hairtreatment">Hair Treatmanet</option>
+        <option value="handcream">Hand Cream</option>
+        <option value="handsanitizer">Hand Sanitizer</option>
+        <option value="perfume">Perfume</option>
+        <option value="skincare">Skin Care</option>
+        <option value="lipstick">Lip stick</option>
+        <option value="powder">Powder</option>
+        <option value="eyeliner">Eye Liner</option>
+        <option value="eyeshadow">Eye Shadow</option>
+        <option value="bronzer">Bronzer</option>
+        <option value="highlighter">Highlighter</option>
+        <option value="shampoo">Shampoo</option>
+        <option value="hairmask">Hair Mask</option>
+        <option value="hairairwrap">Hair Airwrap</option>
+        <option value="bodycream">Body Cream</option>
+        <option value="bodyoil">Body Oil</option>
+        <option value="bodysoap">Body Soap</option>
+        <option value="bodywash">Body Wash</option>
+      </select>
+      <button type="submit">Search</button>
+    </form>
+    <div class="shopping-cart">
+      Shopping cart
+      <div class="shopping-number hidden">0</div>
+    </div>
+    <div class="sign-in">
+      <a href="sign-in.html">Sign In</a>
+    </div>
+    <div class="grid-list">grid/list</div>
+  </section>
+
+  <section id="menu">
+    <div class="make-up">Make up</div>
+    <div class="skin-care">Skin Care</div>
+    <div class="hair">Hair</div>
+    <div class="fragrance">Fragrance</div>
+    <div class="bath-body">Bath&Body</div>
+  </section>
+
+  <section id="main-view">
+    <h2 class="page-title">Main Page</h2>
+    <section id="card-container" class="grid-container">
+    </section>
+  </section>
+
+  <section id="product-page" class="hidden">
+    <div class="product-info">
+      <img class="product-img" src="img/cannotfind.png" alt="Cannot find picture">
+      <div class="product-details"></div>
+      <div class="x-btn">
+        <a href="index.html">x</a>
+      </div>
+    </div>
+
+    <div class="reviews">
+      <h2>Reviews</h2>
+      <div class="rating">
+        <div class="rating-group">
+          <span class="star" data-value="1">&#9733;</span>
+          <span class="star" data-value="2">&#9733;</span>
+          <span class="star" data-value="3">&#9733;</span>
+          <span class="star" data-value="4">&#9733;</span>
+          <span class="star" data-value="5">&#9733;</span>
+          <span class="rating-num">0</span>
+        </div>
+      </div>
+      <div class="comments-container">
+      </div>
+    </div>
+    <div class="write-review">
+      <h2>Write A Review</h2>
+      <article class="hidden">
+        <form class="review-form">
+          <input type="text" name="rating" pattern="[1-5]" placeholder="Enter rating 1-5" required>
+          <div class="comment-open">Click here to write a comment</div>
+          <div class="comment hidden">
+            <textarea name="review" rows="4" cols="50"
+            placeholder="Write your review here..."></textarea>
+          </div>
+          <button type="submit">Submit Review</button>
+        </form>
+      </article>
+      <div class="sign-in-btn"><a href="sign-in.html">Sign In</a></div>
+      <p class="hidden">Successfully submit your review!</p>
+    </div>
+  </section>
+
+  <section class="credit-card-basket-container"></section>
+  <section class="basket-container hidden">
+    <p class="empty-message">Your basket is currently empty</p>
+    <div class="failed-container hidden">
+      <p class="failed-message"></p>
+      <div class="failed-products"></div>
+    </div>
+    <div class="success-container hidden">
+      <p>Transaction completed successfully!</p>
+      <p>Thank you for your purchase.</p>
+
+      <div class="receipt">
+        <h3>Receipt</h3>
+        <p class="confirmation-id">Confirmation Code: <span></span></p>
+        <div class="success-products">
+          <p>Products:</p>
+          <div class="products"></div>
+        </div>
+      </div>
+    </div>
+    <div class="added-products"></div>
+    <div class="sign-in-btn"><a href="sign-in.html">Sign In</a></div>
+    <p class="check-out hidden">check out</p>
+  </section>
+
+  <section class="credit-card-container">
+    <article class="credit-card">
+    </article>
+  </section>
+
+
+  <footer>
+    Pictures when cannot find product pic is from <a href="https://dribbble.com/shots/524523-I-can-t-find-it">here.</a>
+    All the images are credit by Sephora. The site link is
+    <a class="underline" href="https://www.sephora.com/">here.</a>
+    Pictures for icons are credit by here.
+    <a href="https://static.vecteezy.com/system/resources/thumbnails/009/292/244/small/default-avatar-icon-of-social-media-user-vector.jpg">default icon,</a>
+    <a href="https://cdn-icons-png.freepik.com/256/5100/5100114.png?semt=ais_hybrid">dog icon,</a>
+    <a href="https://www.shutterstock.com/image-vector/cat-icon-coloring-book-cute-600nw-2425844347.jpg">cat icon,</a>
+    <a href="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQdssjXkk_GNy3Jod5-617V1XiQ_ojd89MgWg&s">bird icon,</a>
+    <a href="https://cdn-icons-png.flaticon.com/512/4973/4973837.png">dolphin icon.</a>
+  </footer>
+</body>
+</html>

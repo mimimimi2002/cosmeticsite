@@ -1,0 +1,78 @@
+<!--
+Name: Chuanqi Ma, Cecelia Chen
+Date: December 10, 2024
+Section: CSE 154 AB Peter Oh
+This is the HTML structure for sign in to the index.html and create a new account.
+-->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Sign In</title>
+  <link rel="stylesheet" href="style.css">
+  <script src="sign-in.js"></script>
+</head>
+<body>
+  <section class="sign-in-container">
+    <div class="x-btn"><a href="index.html">x</a></div>
+    <h2>Sign In</h2>
+    <form id="sign-in-form">
+      <div>Username</div>
+      <input type="text" name="username" required>
+
+      <div>Password</div>
+      <input type="password" name="password" required>
+
+      <button type="submit">Sign In</button>
+    </form>
+    <div class="error-message hidden">
+    </div>
+    <div class="success hidden">
+      <p>Successfully sign in! Welcome!</p>
+      <div class="go-to-main"><a href="index.html">go to main view</a></div>
+    </div>
+    <div class="new-account">
+      <p>New to CM Beauty?</p>
+      <button>Create a new account</button>
+    </div>
+  </section>
+
+  <section class="new-account-container hidden">
+    <div class="x-btn"><a href="index.html">x</a></div>
+    <h2>New Account</h2>
+    <form id="new-account-form">
+      <input type="text" name="username" pattern="^[a-zA-Z0-9_]{3,20}$"
+      placeholder="User Name (3-20 characters)" required>
+      <input type="text" name="email" pattern="^[^@\s]+@[^@\s]+\.[^@\s]+$"
+      placeholder="Email (e.g., example@domain.com)" required>
+      <input type="password" name="password" pattern="[A-Za-z\d@$!%*?&amp;]{8,20}"
+      placeholder="Password (8-20 characters)" required>
+      <input type="tel" name="phone" pattern="\d{1,14}"
+      placeholder="Phone Number (14 digits)" required>
+      <input type="text" name="cardNumber" pattern="\d{13,19}"
+      placeholder="Card Number (13-19 digits)" required>
+      <input type="number" name="fund" placeholder="Fund Amount (multiple of 10)"
+      min="0" step="10" required>
+      <textarea name="shippingAddress" placeholder="Shipping Address" rows="4" required></textarea>
+      <div class="icon-selection">
+        <p>Choose your icon:</p>
+        <div class="icon-container">
+          <img class="icon-img selected" src="img/icondefault.png" alt="icon">
+          <img class="icon-img" src="img/icondog.png" alt="icon">
+          <img class="icon-img" src="img/iconcat.png" alt="icon">
+          <img class="icon-img" src="img/iconbird.png" alt="icon">
+          <img class="icon-img" src="img/icondolphin.png" alt="icon">
+        </div>
+      </div>
+      <button type="submit">Join now</button>
+    </form>
+    <div class="error-message hidden">
+    </div>
+    <div class="success hidden">
+      Successfully create new account
+      <div class="go-to-main"><a href="index.html">go to main view</a></div>
+    </div>
+  </section>
+</body>
+</html>

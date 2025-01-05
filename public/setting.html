@@ -1,0 +1,125 @@
+<!--
+Name: Chuanqi Ma, Cecelia Chen
+Date: December 10, 2024
+Section: CSE 154 AB Peter Oh
+This is the HTML structure for show the user information, and edit the information.
+-->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>User Settings</title>
+  <link rel="stylesheet" href="style.css">
+  <script src="setting.js" defer></script>
+</head>
+<body>
+  <section class="user-setting-container">
+    <div class="x-btn"><a href="index.html">x</a></div>
+    <h2>Account Information</h2>
+
+    <div id="user-settings-form" class="settings-form">
+      <form class="username-change hidden">
+        <input type="text" name="name" placeholder="Enter new username" required>
+        <div class="cancel-save">
+          <div>Cancel</div>
+          <button type="submit">Save Changes</button>
+        </div>
+      </form>
+      <form class="email-change hidden">
+        <input type="email" name="email" placeholder="Enter your email" required>
+        <div class="cancel-save">
+          <div>Cancel</div>
+          <button type="submit">Save Changes</button>
+        </div>
+      </form>
+      <form class="password-change hidden">
+        <input type="password" name="password" placeholder="Enter your password" required>
+        <div class="cancel-save">
+          <div>Cancel</div>
+          <button type="submit">Save Changes</button>
+        </div>
+      </form>
+      <form class="phone-change hidden">
+        <input type="tel" name="phone" placeholder="Enter your phone number" required>
+        <div class="cancel-save">
+          <div>Cancel</div>
+          <button type="submit">Save Changes</button>
+        </div>
+      </form>
+      <form class="address-change hidden">
+        <textarea name="address" placeholder="Enter your shipping address" rows="4" required
+        aria-label="Shipping Address">
+        </textarea>
+
+        <div class="cancel-save">
+          <div>Cancel</div>
+          <button type="submit">Save Changes</button>
+        </div>
+      </form>
+      <form class="icon-change hidden">
+        <div class="icon-selection">
+          <p>Choose your icon:</p>
+          <div class="icon-container">
+            <img class="icon-img selected" src="img/icondefault.png" alt="icon">
+            <img class="icon-img" src="img/icondog.png" alt="icon">
+            <img class="icon-img" src="img/iconcat.png" alt="icon">
+            <img class="icon-img" src="img/iconbird.png" alt="icon">
+            <img class="icon-img" src="img/icondolphin.png" alt="icon">
+          </div>
+        </div>
+        <div class="cancel-save">
+          <div>Cancel</div>
+          <button type="submit">Save Changes</button>
+        </div>
+      </form>
+      <p class="status-message hidden"></p>
+    </div>
+
+    <section class="curr-info">
+      <section class="info-card currname">
+        <span>Name : </span>
+        <div class="info"></div>
+        <button class="name">Edit</button>
+      </section>
+      <div class="info-card curremail">
+        <span>Email : </span>
+        <div class="info"></div>
+        <button class="email">Edit</button>
+      </div>
+      <div class="info-card currpassword">
+        <span>Password : </span>
+        <div class="info">*******</div>
+        <button class="password"> Edit</button>
+      </div>
+      <div class="info-card currphone">
+        <span>Phone Number: </span>
+        <div class="info"></div>
+        <button class="phone">Edit</button>
+      </div>
+      <div class="info-card currfund">
+        <span>Current Fund : </span>
+        <div class="info"></div>
+      </div>
+      <div class="info-card curraddress">
+        <span>Shipping Address : </span>
+        <div class="info"></div>
+        <button class="address">Edit</button>
+      </div>
+      <div class="info-card curricon">
+        <span>Icon : </span>
+        <img class="info icon-img" src="img/icondefault.png" alt="Default icon image">
+        <button class="icon">Edit</button>
+      </div>
+    </section>
+  </section>
+  <footer>
+    Pictures for icons are credit by here.
+    <a href="https://static.vecteezy.com/system/resources/thumbnails/009/292/244/small/default-avatar-icon-of-social-media-user-vector.jpg">default icon,</a>
+    <a href="https://cdn-icons-png.freepik.com/256/5100/5100114.png?semt=ais_hybrid">dog icon,</a>
+    <a href="https://www.shutterstock.com/image-vector/cat-icon-coloring-book-cute-600nw-2425844347.jpg">cat icon,</a>
+    <a href="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQdssjXkk_GNy3Jod5-617V1XiQ_ojd89MgWg&s">bird icon,</a>
+    <a href="https://cdn-icons-png.flaticon.com/512/4973/4973837.png">dolphin icon</a>
+  </footer>
+</body>
+</html>
