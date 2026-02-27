@@ -16,38 +16,6 @@ A large portion of the implementation and style choices are up to you, but the d
 
 **It is very important that you read the entire specification before starting the implementation process.**
 
-## Partner Information
-This assignment is designed to be a partner project and we highly encourage you to work with a partner. You may only work with one other person - 2 people is the maximum number of people per group. You may not collaborate with anyone besides your partner. If you would like to work on your own, you may request an exception, **however**, the amount of work remains **the same** even if you are approved to work individually.
-
-If you would like to work alone, you must request to do so by the specified deadline. You must also find a partner by the specified deadline or else a partner will be assigned to you. All of these deadlines will be posted on the class website calendar and on the Ed discussion board. If you would like to work with a partner but do not know anyone in the class, post and respond to others in the designated Ed post.
-
-You and your partner should devise a plan for how the work will be divided and when it will be completed. The implementation strategies section of this spec might be useful when planning how to divide up the work. At the end of the quarter, you will be required to fill out a peer evaluation survey reflecting on how well you and your partner worked together and how the work was divided. If there are issues or the division of labor was dramatically unfair, this will be your opportunity to share. This will result in a grade deduction for the individual who did not contribute sufficiently.
-
-**You are not allowed to collaborate with your partner on any other assignment or assessment in this class. The final project is the only assignment where partner work is allowed.**
-
-### Guide to Partnered Git
-When multiple people work on the same GitLab project, things become a bit more complicated than the normal `clone`, `add`, `commit`, `push`. The following is a mini guide on how to work with a partner on the same repository. However, this guide is useless without one extremely important thing: **you must communicate with your partner.** If you are going to work on sections of the assignment separately, let your partner know when you are working on which part. This way, you don’t both accidentally work on the same section.
-1. Each person does `git clone` as they would for any normal assignment
-2. Every time before you start working on your local repo, run `git pull`
-3. After you finish implementing what you were working on, do `git add`, `git commit`, and `git push` (Do this **every time**. Do not just save and come back to it later.)
-
-#### Merge Conflicts
-
-If everything goes right with you and your partner pushing to/pulling from git, you won't need to use this part of the guide. However, it is a possibility that something will go wrong so we are going to provide a mini-guide on resolving merge conflicts. You can access it [here](merge-conflict-guide.md).
-
-## Learning Objectives
-The goal of this project is to test your knowledge of everything you have learned this quarter. You are expected to implement one of the three project options listed above, demonstrating your working understanding of the following topics:
-* HTML: content and structure; using semantically correct tags
-* CSS: style and layout
-* Client-side JavaScript: adding behavior and calling APIs
-* Node.js: creating your own API
-* SQL: providing data persistence in a relational database
-
-You are held to the same standards that we have built upon throughout the past quarter, such as
-  * Good code style, according to our [Code Quality Guidelines](https://courses.cs.washington.edu/courses/cse154/codequalityguide/)
-  * Implementing the feedback you have received in past assignments
-  * Good documentation at every level (project, API, file, and function)
-
 ## Final Deliverables
 Keep in mind that the files listed in the table below are the _minimum_ requirements. Feel free to create additional files but keep in mind that they must include documentation.
 
@@ -75,11 +43,6 @@ Unlike creative projects and homeworks, this final project will include a number
 | (5) Completed Submission | 12/6/24 | [link](#completed-submission) |
 | (6) Project Presentation | 12/10/24 | [link](#project-presentation) |
 | (7) Partner Review | 12/11/24 | [link](#project-review) |
-
-### Partner Selection
-Complete the partner selection survey in which you declare who you would like to work with on this project. Only one (1) person per partner pair should fill out this survey. If you have not found a partner by the deadline, you are still required to fill out the survey stating you have not found a partner and one will be assigned to you randomly. If you don't know anyone in this class, a good way to meet people is by coming to lecture, going to section, and attending office hours and introducing yourself to the people around you. Additionally, a post to partner matching will be provided on Ed.
-
-The link for the partner selection survey will be provided on Ed.
 
 ### Project Plan
 You and your partner must fill out the provided project plan document with all required information. Only one person per partner pair needs to submit this document to Gradescope. The person submitting should use the "Group Member" option to add their partner to the submission.
@@ -252,66 +215,6 @@ You must implement at least two (2) additional features. Below are lists of opti
   * Your website should display some “recommended” products for the user to look through.
   * The algorithm to choose “recommended” products should be in some way based on the purchase history of the user. You may also have it use other information from the user as well.
   * Feel free to recommend something random if the user hasn’t purchased anything!
-
-
-#### Course Enrollment Site
-
-##### Additional Feature 1: Permissions to Enroll
-  * A logged in user must meet all the requirements in order to enroll for a class.
-    * These requirements must be visible to the user.
-  * Requirements must be at least: having taken the pre-requisites, being in the major, and the class having available seats.
-  * This may require saving additional metadata for classes/users.
-
-##### Additional Feature 2: Notify Users of Class Availability
-  * Users may be able to add themselves to a waitlist for classes that have no available spots left.
-  * If spots open up, the user should be notified in some way.
-    * For example, users may be notified the next time they log in if a spot opens up while they are offline.
-  * **Note**: This may be difficult to test because you and your partner are the only "users". For the presentation, you may make changes to the database manually to show this feature.
-
-##### Additional Feature 3: Bulk Enroll
-  * Users may add classes to a "cart."
-  * The classes in the "cart" should persist through refreshing of the page, for at least a couple of days.
-  * Users should be able to navigate somewhere to see the classes in the "cart." There should then be the option to bulk enroll in these classes.
-  * All of the items in the bulk enroll should be given the same confirmation code as each item is enrolled together in one transaction.
-
-##### Additional Feature 4: Schedule builder
-  * Users may have the website build a schedule for them based on the classes in the “cart.”
-  * This requires dates and time metadata for classes in the inventory.
-  * Your schedule builder algorithm should in some way display all of the possible schedules based on the user's “cart.”
-  * **Note**: This should be difficult to implement. It deals with time conflicts, and exhausting all the possible combinations of the classes that work together. While it may be difficult, it will also be fun and a valuable "challenge" to discuss during something like a job interview!
-
-##### Additional Feature 5: Degree Audit
-  * Users may have the website audit a degree. This can be either a major or a minor.
-  * Your website should now store information about class requirements to complete a degree in a specific major/minor.
-  * If the user chooses to audit a degree, the website should display valuable information about completed classes that count towards the degree, as well as any classes that still need to be taken to complete the degree.
-  * There must be at least 5 classes within at least 1 department for minors, and at least 10 classes within at least 3 departments for majors.
-
-#### Reservation Site
-
-##### Additional Feature 1: Feedback on a Service
-  * Logged-in users should be able to give feedback on any given service
-  * This should use a numerical rating scheme.
-  * There should be an “average rating” visibly shown for any given service.
-  * It may be useful to allow for users to explain their numerical ratings. As such, you should additionally allow for users to have the option to submit text reviews (e.g. comments) for any given product to accompany the numerical rating it received.
-
-##### Additional Feature 2: Create a New User
-  * Users are presented with a method in which to create an account for your reservation site.
-  * The user provides at minimum a username, password, and e-mail.
-  * The user information should be added to the database.
-    * Optionally, feel free to use security methods such as hashing to make your website more “secure”
-  * This information should be encapsulated within a Form HTML element
-
-##### Additional Feature 3: Booking with Time
-  * Your website now has additional metadata for each service that includes the dates/times available.
-  * When booking, an additional option and constraint is available. Users may choose a period of time to book a service for. The users are not able to book a service in a time period in which the service is unavailable (already booked).
-  * Your website should keep track of the users and their reservation times. As a consequence of this, users should not be able to double-book themselves. For example, a user should not be able to reserve a service for Tuesday from 3pm-7pm when they already have a service reserved for Tuesday 4pm-5pm.
-
-
-##### Additional Feature 4: Things to do
-  * Your website now has additional metadata for each service that includes the location of the service.
-  * Your website will give recommendations of things to do in certain locations!
-    * This can be shown while booking, after a transaction is completed, etc.
-  * Feel free to use the Google Maps API to display the exact locations of these destinations!
 
 # Internal Requirements
 
