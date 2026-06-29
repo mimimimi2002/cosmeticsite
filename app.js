@@ -517,7 +517,7 @@ app.post("/carts", async (req, res) => {
 /**
  * Remove the product from cart when session ID is valid.
  */
-app.post("/cart/remove", async (req, res) => {
+app.delete("/carts/:productId", async (req, res) => {
   const authHeader = req.headers.authorization;
 
   if (!authHeader) {
@@ -526,7 +526,7 @@ app.post("/cart/remove", async (req, res) => {
 
   const sessionId = authHeader.replace("Bearer ", "");
   try {
-    let productId = req.body.productId;
+    let productId = req.params.productId;
 
     if (!productId) {
       res.status(USER_PARAMETER_ERROR).type("text")

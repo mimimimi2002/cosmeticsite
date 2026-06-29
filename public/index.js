@@ -1125,14 +1125,11 @@
     let sessionId = sessionStorage.getItem("session_id");
     if (sessionId) {
       try {
-        let data = new FormData();
-        data.append("productId", productId);
-        let response = await fetch("/cart/remove", {
-          method: "POST",
+        let response = await fetch("/carts/" + productId, {
+          method: "DELETE",
           headers: {
             "Authorization": `Bearer ${sessionId}`
           },
-          body: data
         });
         await statusCheck(response);
         response = await response.text();
