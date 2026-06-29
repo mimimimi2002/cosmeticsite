@@ -181,7 +181,13 @@
     data.append("input", input);
     data.append("column", column);
     try {
-      let response = await fetch("/edit/userinfo/" + sessionId, {method: "POST", body: data});
+      let response = await fetch("/edit/userinfo", {
+        method: "POST",
+        headers: {
+          "Authorization": `Bearer ${sessionId}`
+        },
+        body: data
+      });
       await statusCheck(response);
       response = await response.json();
       await checkResult(response);
@@ -241,7 +247,11 @@
     let sessionId = sessionStorage.getItem("session_id");
     if (sessionId) {
       try {
-        let response = await fetch("/userinfo/" + sessionId);
+        let response = await fetch("/users/me", {
+          headers: {
+            "Authorization": `Bearer ${sessionId}`
+          }
+        });
         await statusCheck(response);
         response = await response.json();
 

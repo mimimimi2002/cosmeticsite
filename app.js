@@ -394,8 +394,14 @@ async function getProductDetails(db, confirmationId, productId) {
 /**
  * Sign out the user if they are signed in.
  */
-app.post("/signout/:sessionId", async (req, res) => {
-  let sessionId = req.params.sessionId;
+app.post("/signout", async (req, res) => {
+  const authHeader = req.headers.authorization;
+
+  if (!authHeader) {
+    return res.status(401).send("no token");
+  }
+
+  const sessionId = authHeader.replace("Bearer ", "");
   try {
     let db = await getDBConnection();
     let results = await db.all("SELECT * FROM session WHERE session_id = ?", sessionId);
@@ -421,8 +427,14 @@ app.post("/signout/:sessionId", async (req, res) => {
 /**
  * Edit user information when sessionId is valid.
  */
-app.post("/edit/userinfo/:sessionId", async (req, res) => {
-  const sessionId = req.params.sessionId;
+app.post("/edit/userinfo", async (req, res) => {
+  const authHeader = req.headers.authorization;
+
+  if (!authHeader) {
+    return res.status(401).send("no token");
+  }
+
+  const sessionId = authHeader.replace("Bearer ", "");
   const {column, input} = req.body;
   const allowedColumns = ['username', 'email', 'password', 'shipping_address', 'phone', 'imgpath'];
   if (!column || !input || !allowedColumns.includes(column)) {
@@ -463,9 +475,15 @@ app.post("/edit/userinfo/:sessionId", async (req, res) => {
 /**
  * Store the added product to database when session ID is valid.
  */
-app.post("/cart/add/:sessionId", async (req, res) => {
+app.post("/cart/add", async (req, res) => {
+  const authHeader = req.headers.authorization;
+
+  if (!authHeader) {
+    return res.status(401).send("no token");
+  }
+
+  const sessionId = authHeader.replace("Bearer ", "");
   try {
-    let sessionId = req.params.sessionId;
     let productId = req.body.productId;
 
     if (!productId) {
@@ -500,14 +518,20 @@ app.post("/cart/add/:sessionId", async (req, res) => {
 /**
  * Remove the product from cart when session ID is valid.
  */
-app.post("/cart/remove/:sessionId", async (req, res) => {
+app.post("/cart/remove", async (req, res) => {
+  const authHeader = req.headers.authorization;
+
+  if (!authHeader) {
+    return res.status(401).send("no token");
+  }
+
+  const sessionId = authHeader.replace("Bearer ", "");
   try {
-    let sessionId = req.params.sessionId;
     let productId = req.body.productId;
 
-    if (!sessionId || !productId) {
+    if (!productId) {
       res.status(USER_PARAMETER_ERROR).type("text")
-        .send("SessionId or productId is missing");
+        .send("productId is missing");
     } else {
       let db = await getDBConnection();
 
@@ -536,9 +560,15 @@ app.post("/cart/remove/:sessionId", async (req, res) => {
 /**
  * Update the products of quantity in cart when session ID is valid.
  */
-app.post("/cart/update/quantity/:sessionId", async (req, res) => {
+app.post("/cart/update/quantity", async (req, res) => {
+  const authHeader = req.headers.authorization;
+
+  if (!authHeader) {
+    return res.status(401).send("no token");
+  }
+
+  const sessionId = authHeader.replace("Bearer ", "");
   try {
-    let sessionId = req.params.sessionId;
     let quantity = req.body.quantity;
     let productId = req.body.productId;
 
@@ -573,8 +603,14 @@ app.post("/cart/update/quantity/:sessionId", async (req, res) => {
 /**
  * Get the cart information when session ID is valid.
  */
-app.get("/cart/get/:sessionId", async (req, res) => {
-  let sessionId = req.params.sessionId;
+app.get("/cart/get", async (req, res) => {
+  const authHeader = req.headers.authorization;
+
+  if (!authHeader) {
+    return res.status(401).send("no token");
+  }
+
+  const sessionId = authHeader.replace("Bearer ", "");
   try {
     let db = await getDBConnection();
 
@@ -603,8 +639,14 @@ app.get("/cart/get/:sessionId", async (req, res) => {
 /**
  * Buy the products that are in cart when session ID is valid.
  */
-app.post("/buy/:sessionId", async (req, res) => {
-  let sessionId = req.params.sessionId;
+app.post("/buy", async (req, res) => {
+  const authHeader = req.headers.authorization;
+
+  if (!authHeader) {
+    return res.status(401).send("no token");
+  }
+
+  const sessionId = authHeader.replace("Bearer ", "");
   try {
     let db = await getDBConnection();
     let userInfo = await getUserInfo(db, sessionId);

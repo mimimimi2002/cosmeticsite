@@ -161,8 +161,11 @@
 
     try {
       let sessionId = sessionStorage.getItem("session_id");
-      let res = await fetch("/buy/" + sessionId, {
-        method: "POST"
+      let res = await fetch("/buy", {
+        method: "POST",
+        headers: {
+          "Authorization": `Bearer ${sessionId}`
+        }
       });
       await statusCheck(res);
       res = await res.json();
@@ -348,7 +351,11 @@
     try {
       let sessionId = sessionStorage.getItem("session_id");
       if (sessionId) {
-        let previousCartProducts = await fetch("/cart/get/" + sessionId);
+        let previousCartProducts = await fetch("/cart/get", {
+          headers: {
+            "Authorization": `Bearer ${sessionId}`
+          }
+        });
         await statusCheck(previousCartProducts);
         previousCartProducts = await previousCartProducts.json();
 
@@ -474,8 +481,11 @@
   async function signOutFunction() {
     try {
       let sessionId = sessionStorage.getItem("session_id");
-      let result = await fetch("/signout/" + sessionId, {
-        method: "POST"
+      let result = await fetch("/signout", {
+        method: "POST",
+        headers: {
+          "Authorization": `Bearer ${sessionId}`
+        }
       });
       await statusCheck(result);
       result = await result.text();
@@ -815,8 +825,11 @@
       let data = new FormData();
       data.append("productId", productId);
       let sessionId = sessionStorage.getItem("session_id");
-      let response = await fetch("/cart/add/" + sessionId, {
+      let response = await fetch("/cart/add", {
         method: "POST",
+        headers: {
+          "Authorization": `Bearer ${sessionId}`
+        },
         body: data
       });
       await statusCheck(response);
@@ -1067,8 +1080,11 @@
       data.append("productId", productId);
 
       let sessionId = sessionStorage.getItem("session_id");
-      let response = await fetch("/cart/update/quantity/" + sessionId, {
+      let response = await fetch("/cart/update/quantity", {
         method: "POST",
+        headers: {
+          "Authorization": `Bearer ${sessionId}`
+        },
         body: data
       });
       await statusCheck(response);
@@ -1111,8 +1127,11 @@
       try {
         let data = new FormData();
         data.append("productId", productId);
-        let response = await fetch("/cart/remove/" + sessionId, {
+        let response = await fetch("/cart/remove", {
           method: "POST",
+          headers: {
+            "Authorization": `Bearer ${sessionId}`
+          },
           body: data
         });
         await statusCheck(response);
