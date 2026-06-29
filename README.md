@@ -1,9 +1,18 @@
 # Final Project
 
+## Requirements
+- Node.js 18 or higher
+
 ## Command to start
 ```
 npm install
 node app.js
+```
+Once started, open http://localhost:8000 in your browser.
+
+To use a different port:
+```
+PORT=9000 node app.js
 ```
 
 ## Intro
