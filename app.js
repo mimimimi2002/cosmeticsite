@@ -474,7 +474,7 @@ app.patch("/users", async (req, res) => {
 /**
  * Store the added product to database when session ID is valid.
  */
-app.post("/cart/add", async (req, res) => {
+app.post("/carts", async (req, res) => {
   const authHeader = req.headers.authorization;
 
   if (!authHeader) {

@@ -825,7 +825,7 @@
       let data = new FormData();
       data.append("productId", productId);
       let sessionId = sessionStorage.getItem("session_id");
-      let response = await fetch("/cart/add", {
+      let response = await fetch("/carts", {
         method: "POST",
         headers: {
           "Authorization": `Bearer ${sessionId}`
