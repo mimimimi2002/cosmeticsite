@@ -14,7 +14,7 @@ type Product struct {
 	Cost      int    `db:"cost" json:"cost"`
 	Size      int    `db:"size" json:"size"`
 	Category  string `db:"category" json:"category"`
-	ImageName   string `db:"image_name" json:"image_name"`
+	ImageName string `db:"image_name" json:"image_name"`
 }
 
 type ProductRepository interface {

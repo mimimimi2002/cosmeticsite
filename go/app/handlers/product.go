@@ -47,7 +47,7 @@ type AddProductResponse struct {
 	Cost      int
 	Size      int
 	Category  string
-	ImageName   string
+	ImageName string
 }
 
 type GetProductsResponse struct {
