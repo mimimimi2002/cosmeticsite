@@ -876,8 +876,10 @@
       let data = new FormData();
       data.append("rating", rating);
       data.append("comment", comment);
+      data.append("sessionId", sessionId);
+      data.append("productId", productId)
 
-      let res = await fetch("/newreview/" + sessionId + "?id=" + productId, {
+      let res = await fetch("/reviews", {
         method: "POST",
         body: data
       });

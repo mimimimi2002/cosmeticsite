@@ -236,19 +236,19 @@ app.get("/reviews", async (req, res) => {
 /**
  * Submit the review of specific product and  update the database if sessionID is valid.
  */
-app.post("/newreview/:sessionId", async (req, res) => {
-  const productId = req.query.id;
-  const {rating, comment} = req.body;
-  const sessionId = req.params.sessionId;
+app.post("/reviews", async (req, res) => {
+  const {rating, comment, sessionId, productId} = req.body;
 
   // if the comment is "" it accepts it.
   if (!productId || !rating || (comment !== "" && !comment)) {
     res.status(USER_PARAMETER_ERROR).type("text")
       .send("Product ID or rating or comment is missing");
   } else {
+    let db;
     try {
-      const db = await getDBConnection();
+      db = await getDBConnection();
 
+      // check valid sessionID
       const userId = await getUserIdFromSession(db, sessionId);
 
       if (!userId) {
@@ -261,12 +261,15 @@ app.post("/newreview/:sessionId", async (req, res) => {
         "INSERT INTO review (user_id, product_id, rating, comment) VALUES (?, ?, ?, ?)"
         , [userId, productId, rating, comment]
       );
-      await db.close();
       res.type("text")
         .send("successfully submit review");
     } catch (err) {
       res.status(SERVER_ERROR).type('text')
         .send('Something is wrong with server');
+    } finally {
+      if (db) {
+        db.close();
+      }
     }
   }
 });
