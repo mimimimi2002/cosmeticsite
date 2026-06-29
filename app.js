@@ -602,7 +602,7 @@ app.patch("/carts/:productId", async (req, res) => {
 /**
  * Get the cart information when session ID is valid.
  */
-app.get("/cart/get", async (req, res) => {
+app.get("/carts", async (req, res) => {
   const authHeader = req.headers.authorization;
 
   if (!authHeader) {

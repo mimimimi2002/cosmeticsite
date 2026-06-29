@@ -351,7 +351,7 @@
     try {
       let sessionId = sessionStorage.getItem("session_id");
       if (sessionId) {
-        let previousCartProducts = await fetch("/cart/get", {
+        let previousCartProducts = await fetch("/carts", {
           headers: {
             "Authorization": `Bearer ${sessionId}`
           }
