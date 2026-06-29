@@ -15,13 +15,13 @@ import (
 	"product-api/app/repository"
 )
 
-type Handlers struct {
+type ProductHandler struct {
 	imgDirPath  string
 	productRepo repository.ProductRepository
 }
 
-func NewHandlers(imgDirPath string, productRepo repository.ProductRepository) *Handlers {
-	return &Handlers{
+func NewProductHandler(imgDirPath string, productRepo repository.ProductRepository) *ProductHandler {
+	return &ProductHandler{
 		imgDirPath:  imgDirPath,
 		productRepo: productRepo,
 	}
@@ -137,7 +137,7 @@ func parseGetProductByIDRequest(r *http.Request) (*GetProductByIDRequest, error)
 	return req, nil
 }
 
-func (h *Handlers) storeImage(data []byte) (string, error) {
+func (h *ProductHandler) storeImage(data []byte) (string, error) {
 	// hash for image data
 	hash := sha256.Sum256(data)
 	fileName := hex.EncodeToString(hash[:]) + `.jpg`
@@ -153,7 +153,7 @@ func (h *Handlers) storeImage(data []byte) (string, error) {
 
 }
 
-func (h *Handlers) AddProduct(w http.ResponseWriter, r *http.Request) {
+func (h *ProductHandler) AddProduct(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	// parse request
 	req, err := parseAddProductRequest(r)
@@ -217,7 +217,7 @@ func (h *Handlers) AddProduct(w http.ResponseWriter, r *http.Request) {
 	return
 }
 
-func (h *Handlers) GetProducts(w http.ResponseWriter, r *http.Request) {
+func (h *ProductHandler) GetProducts(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
 	// parse request : no format
@@ -247,7 +247,7 @@ func (h *Handlers) GetProducts(w http.ResponseWriter, r *http.Request) {
 	return
 }
 
-func (h *Handlers) GetProductByID(w http.ResponseWriter, r *http.Request) {
+func (h *ProductHandler) GetProductByID(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	// parse request
 	req, err := parseGetProductByIDRequest(r)
