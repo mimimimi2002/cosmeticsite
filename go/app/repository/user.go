@@ -19,6 +19,7 @@ type User struct {
 type UserRepository interface {
 	SelectAll(ctx context.Context) ([]*User, error)
 	SelectByID(ctx context.Context, userID int) (*User, error)
+	SelectByEmail(ctx context.Context, email string) (*User, error)
 	Insert(ctx context.Context, user *User) error
 }
 
@@ -113,6 +114,35 @@ func (u *userRepository) SelectByID(ctx context.Context, userID int) (*User, err
 	`
 
 	err := db.QueryRow(query, userID).Scan(
+		&user.UserID,
+		&user.Username,
+		&user.Email,
+		&user.Password,
+		&user.Phone,
+		&user.CardNumber,
+		&user.Fund,
+		&user.ShippingAddress,
+	)
+
+	if err != nil {
+		return nil, err
+	}
+
+	return &user, nil
+}
+
+func (u *userRepository) SelectByEmail(ctx context.Context, email string) (*User, error) {
+	db := u.db
+
+	var user User
+	// query
+	query := `
+		SELECT user_id, username, email, password, phone, card_number, fund, shipping_address
+		FROM users
+		WHERE email = ?
+	`
+
+	err := db.QueryRow(query, email).Scan(
 		&user.UserID,
 		&user.Username,
 		&user.Email,

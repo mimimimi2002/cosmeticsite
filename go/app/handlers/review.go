@@ -11,12 +11,14 @@ import (
 )
 
 type ReviewHandler struct {
-	reviewRepo repository.ReviewRepository
+	reviewRepo  repository.ReviewRepository
+	sessionRepo repository.SessionRepository
 }
 
-func NewReviewHandler(reviewRepo repository.ReviewRepository) *ReviewHandler {
+func NewReviewHandler(reviewRepo repository.ReviewRepository, sessionRepo repository.SessionRepository) *ReviewHandler {
 	return &ReviewHandler{
-		reviewRepo: reviewRepo,
+		reviewRepo:  reviewRepo,
+		sessionRepo: sessionRepo,
 	}
 }
 
@@ -109,6 +111,13 @@ func parseGetReviewsByProductIDRequest(r *http.Request) (*GetReviewsByProductIDR
 
 func (h *ReviewHandler) AddReview(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
+
+	// require a valid session (login)
+	if _, err := authenticate(r, h.sessionRepo); err != nil {
+		http.Error(w, "unauthorized", http.StatusUnauthorized)
+		return
+	}
+
 	// parse request
 	req, err := parseAddReviewRequest(r)
 

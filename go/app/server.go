@@ -44,25 +44,31 @@ func (s Server) Run() int {
 	productRepo := repository.NewProductRepository(db)
 	userRepo := repository.NewUserRepository(db)
 	reviewRepo := repository.NewReviewRepository(db)
+	sessionRepo := repository.NewSessionRepository(db)
 
 	// Handlers
-	productHandler := handlers.NewProductHandler(s.ImagePath, productRepo)
+	productHandler := handlers.NewProductHandler(s.ImagePath, productRepo, sessionRepo)
 	userHandler := handlers.NewUserHandler(userRepo)
-	reviewHandler := handlers.NewReviewHandler(reviewRepo)
+	reviewHandler := handlers.NewReviewHandler(reviewRepo, sessionRepo)
+	authHandler := handlers.NewAuthHandler(userRepo, sessionRepo)
 
 	// multiplexer routing
 	mux := http.NewServeMux()
 
-	// handle func
-	mux.HandleFunc("POST /products", productHandler.AddProduct)
+	// public routes (no login required)
 	mux.HandleFunc("GET /products", productHandler.GetProducts)
 	mux.HandleFunc("GET /products/{product_id}", productHandler.GetProductByID)
+	mux.HandleFunc("GET /products/{product_id}/reviews", reviewHandler.GetReviewsByProductID)
+	mux.HandleFunc("GET /reviews", reviewHandler.GetReviews)
 	mux.HandleFunc("POST /users", userHandler.AddUser)
+	mux.HandleFunc("POST /signin", authHandler.SignIn)
+
+	// protected routes (login required) — each handler validates the session_id itself
+	mux.HandleFunc("POST /products", productHandler.AddProduct)
+	mux.HandleFunc("POST /reviews", reviewHandler.AddReview)
+	mux.HandleFunc("POST /signout", authHandler.SignOut)
 	mux.HandleFunc("GET /users", userHandler.GetUsers)
 	mux.HandleFunc("GET /users/{user_id}", userHandler.GetUserByID)
-	mux.HandleFunc("POST /reviews", reviewHandler.AddReview)
-	mux.HandleFunc("GET /reviews", reviewHandler.GetReviews)
-	mux.HandleFunc("GET /products/{product_id}/reviews", reviewHandler.GetReviewsByProductID)
 
 	// start the server
 	slog.Info("http server started on", "port", s.Port)

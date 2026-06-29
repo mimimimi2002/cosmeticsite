@@ -18,12 +18,14 @@ import (
 type ProductHandler struct {
 	imgDirPath  string
 	productRepo repository.ProductRepository
+	sessionRepo repository.SessionRepository
 }
 
-func NewProductHandler(imgDirPath string, productRepo repository.ProductRepository) *ProductHandler {
+func NewProductHandler(imgDirPath string, productRepo repository.ProductRepository, sessionRepo repository.SessionRepository) *ProductHandler {
 	return &ProductHandler{
 		imgDirPath:  imgDirPath,
 		productRepo: productRepo,
+		sessionRepo: sessionRepo,
 	}
 }
 
@@ -155,6 +157,13 @@ func (h *ProductHandler) storeImage(data []byte) (string, error) {
 
 func (h *ProductHandler) AddProduct(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
+
+	// require a valid session (login)
+	if _, err := authenticate(r, h.sessionRepo); err != nil {
+		http.Error(w, "unauthorized", http.StatusUnauthorized)
+		return
+	}
+
 	// parse request
 	req, err := parseAddProductRequest(r)
 
