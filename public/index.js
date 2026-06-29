@@ -80,7 +80,7 @@
   async function filterMenu(menu, title) {
     changeTitle(title);
     try {
-      let response = await fetch("/filter/" + menu);
+      let response = await fetch("/products/?category=" + menu);
       await statusCheck(response);
       response = await response.json();
       displayAllProducts(response.products);

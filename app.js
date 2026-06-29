@@ -19,21 +19,29 @@ app.use(multer().none());
  * Return all products' information.
  */
 app.get("/products", async (req, res) => {
+  let category = req.query.category;
   let db;
-  try {
 
+  try {
     db = await getDBConnection();
 
-    // select all rows from products table
-    let results = await db.all("SELECT * FROM products");
-    res.json({ products: results });
-  } catch (err) {
-    res.status(SERVER_ERROR).type("text")
-      .send("Something is wrong with server. Please try again");
-  } finally {
-    if (db) {
-      await db.close();
+    let results;
+
+    if (category) {
+      results = await db.all(
+        "SELECT * FROM products WHERE category = ?",
+        category
+      );
+    } else {
+      results = await db.all("SELECT * FROM products");
     }
+
+    res.json({ products: results });
+
+  } catch (err) {
+    res.status(500).send("Something is wrong with server");
+  } finally {
+    if (db) await db.close();
   }
 });
 
@@ -68,34 +76,6 @@ app.get("/search", async (req, res) => {
   } catch (err) {
     res.status(SERVER_ERROR).type("text")
       .send("Something is wrong with server. Please try again.");
-  }
-});
-
-/**
- * Filter products based on the category.
- * Returns all the information of products that matches category.
- */
-app.get("/filter/:category", async (req, res) => {
-  let category = req.params.category;
-  try {
-    let db = await getDBConnection();
-
-    // Use a parameterized query to prevent SQL injection
-    let results = await db.all("SELECT * FROM products WHERE category = ?", category);
-
-    // Check if results are found
-    if (results.length > 0) {
-      let returnResults = {"products": results};
-      await db.close();
-      res.json(returnResults);
-    } else {
-      await db.close();
-      res.status(USER_PARAMETER_ERROR).type("text")
-        .send("No matching products found.");
-    }
-  } catch (err) {
-    res.status(SERVER_ERROR).type("text")
-      .send("Something is wrong with server. Please try again");
   }
 });
 
