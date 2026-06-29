@@ -14,6 +14,7 @@ type Product struct {
 	Cost      int    `db:"cost" json:"cost"`
 	Size      int    `db:"size" json:"size"`
 	Category  string `db:"category" json:"category"`
+	ImageName   string `db:"image_name" json:"image_name"`
 }
 
 type ProductRepository interface {
@@ -34,7 +35,7 @@ func (b *productRepository) SelectAll(ctx context.Context) ([]*Product, error) {
 	db := b.db
 
 	// query
-	query := "SELECT product_id, name, type, brand, color, cost, size, category FROM products"
+	query := "SELECT product_id, name, type, brand, color, cost, size, category image_name FROM products"
 
 	rows, err := db.Query(query)
 
@@ -57,6 +58,7 @@ func (b *productRepository) SelectAll(ctx context.Context) ([]*Product, error) {
 			&product.Cost,
 			&product.Size,
 			&product.Category,
+			&product.ImageName,
 		); err != nil {
 			return nil, err
 		}
@@ -107,7 +109,7 @@ func (b *productRepository) SelectByID(ctx context.Context, productID int) (*Pro
 	var product Product
 	// query
 	query := `
-		SELECT product_id, name, type, brand, color, cost, size, category
+		SELECT product_id, name, type, brand, color, cost, size, category, image_name
 		FROM products
 		WHERE product_id = ?
 	`
@@ -121,6 +123,7 @@ func (b *productRepository) SelectByID(ctx context.Context, productID int) (*Pro
 		&product.Cost,
 		&product.Size,
 		&product.Category,
+		&product.ImageName,
 	)
 
 	if err != nil {

@@ -1,10 +1,15 @@
 package handlers
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
+	"io"
 	"log/slog"
 	"net/http"
+	"os"
+	"path/filepath"
 	"strconv"
 
 	"product-api/app/repository"
@@ -23,13 +28,14 @@ func NewHandlers(imgDirPath string, productRepo repository.ProductRepository) *H
 }
 
 type AddProductRequest struct {
-	Name     string
-	Type     string
-	Brand    string
-	Color    string
-	Cost     int
-	Size     int
-	Category string
+	Name      string
+	Type      string
+	Brand     string
+	Color     string
+	Cost      int
+	Size      int
+	Category  string
+	ImageData []byte
 }
 
 type AddProductResponse struct {
@@ -41,6 +47,7 @@ type AddProductResponse struct {
 	Cost      int
 	Size      int
 	Category  string
+	ImageName   string
 }
 
 type GetProductsResponse struct {
@@ -60,6 +67,7 @@ type GetProductByIDResponse struct {
 	Cost      int
 	Size      int
 	Category  string
+	ImgName   string
 }
 
 func parseAddProductRequest(r *http.Request) (*AddProductRequest, error) {
@@ -75,18 +83,36 @@ func parseAddProductRequest(r *http.Request) (*AddProductRequest, error) {
 		return nil, errors.New("size should be integer")
 	}
 
+	// validate image byte file
+	f, _, err := r.FormFile("image_name")
+
+	if err != nil {
+		return nil, errors.New("failed to open image file")
+	}
+
+	data, err := io.ReadAll(f)
+
+	if err != nil {
+		return nil, errors.New("failed to read data from file")
+	}
+
 	req := &AddProductRequest{
-		Name:     r.FormValue("name"),
-		Type:     r.FormValue("type"),
-		Brand:    r.FormValue("brand"),
-		Color:    r.FormValue("color"),
-		Cost:     cost,
-		Size:     size,
-		Category: r.FormValue("category"),
+		Name:      r.FormValue("name"),
+		Type:      r.FormValue("type"),
+		Brand:     r.FormValue("brand"),
+		Color:     r.FormValue("color"),
+		Cost:      cost,
+		Size:      size,
+		Category:  r.FormValue("category"),
+		ImageData: data,
 	}
 
 	if req.Name == "" {
 		return nil, errors.New("name is required")
+	}
+
+	if len(req.ImageData) == 0 {
+		return nil, errors.New("image data is empty")
 	}
 
 	return req, nil
@@ -111,6 +137,22 @@ func parseGetProductByIDRequest(r *http.Request) (*GetProductByIDRequest, error)
 	return req, nil
 }
 
+func (h *Handlers) storeImage(data []byte) (string, error) {
+	// hash for image data
+	hash := sha256.Sum256(data)
+	fileName := hex.EncodeToString(hash[:]) + `.jpg`
+	filePath := filepath.Join(h.imgDirPath, fileName)
+
+	err := os.WriteFile(filePath, data, 0644)
+
+	if err != nil {
+		return "", err
+	}
+
+	return fileName, nil
+
+}
+
 func (h *Handlers) AddProduct(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	// parse request
@@ -121,15 +163,24 @@ func (h *Handlers) AddProduct(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	fileName, err := h.storeImage(req.ImageData)
+
+	if err != nil {
+		slog.Error("failed to store image")
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
 	// parse request to repo.Product
 	product := &repository.Product{
-		Name:     req.Name,
-		Type:     req.Type,
-		Brand:    req.Brand,
-		Color:    req.Color,
-		Cost:     req.Cost,
-		Size:     req.Size,
-		Category: req.Category,
+		Name:      req.Name,
+		Type:      req.Type,
+		Brand:     req.Brand,
+		Color:     req.Color,
+		Cost:      req.Cost,
+		Size:      req.Size,
+		Category:  req.Category,
+		ImageName: fileName,
 	}
 
 	// repository.insert
@@ -152,6 +203,7 @@ func (h *Handlers) AddProduct(w http.ResponseWriter, r *http.Request) {
 		Cost:      product.Cost,
 		Size:      product.Size,
 		Category:  product.Category,
+		ImageName: product.ImageName,
 	}
 
 	// encode response
