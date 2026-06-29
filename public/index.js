@@ -161,7 +161,7 @@
 
     try {
       let sessionId = sessionStorage.getItem("session_id");
-      let res = await fetch("/buy", {
+      let res = await fetch("/purchases", {
         method: "POST",
         headers: {
           "Authorization": `Bearer ${sessionId}`

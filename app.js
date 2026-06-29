@@ -638,7 +638,7 @@ app.get("/carts", async (req, res) => {
 /**
  * Buy the products that are in cart when session ID is valid.
  */
-app.post("/buy", async (req, res) => {
+app.post("/purchases", async (req, res) => {
   const authHeader = req.headers.authorization;
 
   if (!authHeader) {
@@ -699,7 +699,7 @@ async function handleInvalidSession(db, res) {
  */
 async function handleEmptyCart(db, res) {
   await db.close();
-  res.status(SERVER_ERROR).type("text")
+  res.status(USER_PARAMETER_ERROR).type("text")
     .send("Something is wrong with server. Please try again.");
 }
 
