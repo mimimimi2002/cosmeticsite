@@ -53,20 +53,38 @@
    */
   function setupFilterMenu() {
     qs(".make-up").addEventListener("click", async function() {
+      setActiveMenu(this);
       await filterMenu("makeup", "Make up");
     });
     qs(".skin-care").addEventListener("click", async function() {
+      setActiveMenu(this);
       await filterMenu("skincare", "Skin Care");
     });
     qs(".hair").addEventListener("click", async function() {
+      setActiveMenu(this);
       await filterMenu("hair", "Hair");
     });
     qs(".fragrance").addEventListener("click", async function() {
+      setActiveMenu(this);
       await filterMenu("fragrance", "Fragrance");
     });
     qs(".bath-body").addEventListener("click", async function() {
+      setActiveMenu(this);
       await filterMenu("bathbody", "Bath & Body");
     });
+  }
+
+  /**
+   * Highlights the clicked menu item by adding the "active" class,
+   * and removes it from all other menu items so only one stays highlighted.
+   * @param {HTMLElement} selected - The clicked menu element to highlight.
+   */
+  function setActiveMenu(selected) {
+    let items = qsa("#menu div");
+    for (let i = 0; i < items.length; i++) {
+      items[i].classList.remove("active");
+    }
+    selected.classList.add("active");
   }
 
   /**
