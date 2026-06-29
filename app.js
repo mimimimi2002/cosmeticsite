@@ -82,31 +82,30 @@ app.get("/search", async (req, res) => {
 /**
  * Return all information of product that matches the product_id.
  */
-app.get("/product", async (req, res) => {
-  let productId = req.query.id;
-  if (!productId) {
-    res.status(USER_PARAMETER_ERROR).type("text")
-      .send("Product ID is missing.");
-  } else {
-    try {
-      let db = await getDBConnection();
+app.get("/products/:id", async (req, res) => {
+  let productId = req.params.id;
+  let db;
+  try {
+    let db = await getDBConnection();
 
-      // get all information of product that matches product_id
-      let query = `SELECT * FROM products p
+    // get all information of product that matches product_id
+    let query = `
+      SELECT * FROM products p
       JOIN inventory i ON i.product_id = p.product_id
       WHERE p.product_id = ?`;
-      let results = await db.all(query, productId);
-      if (results.length > 0) {
-        await db.close();
-        res.json(results[0]);
-      } else {
-        await db.close();
-        res.status(USER_PARAMETER_ERROR).type('text')
-          .send("Invalid Product ID");
-      }
-    } catch (err) {
-      res.status(SERVER_ERROR).type("text")
-        .send("Something is wrong with server. Please try again");
+    let results = await db.all(query, productId);
+    if (results.length > 0) {
+      res.json(results[0]);
+    } else {
+      res.status(USER_PARAMETER_ERROR).type('text')
+        .send("Invalid Product ID");
+    }
+  } catch (err) {
+    res.status(SERVER_ERROR).type("text")
+      .send("Something is wrong with server. Please try again");
+  } finally {
+    if (db) {
+      await db.close();
     }
   }
 });

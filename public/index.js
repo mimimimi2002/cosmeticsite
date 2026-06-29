@@ -656,7 +656,7 @@
     qs(".review-form input[name=rating]").value = "";
     qs(".review-form textarea[name=review]").value = "";
     try {
-      let res = await fetch("/product?id=" + productId);
+      let res = await fetch("/products/" + productId);
       await statusCheck(res);
       res = await res.json();
       await displayProductPage(res, productId);
