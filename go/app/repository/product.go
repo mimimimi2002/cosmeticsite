@@ -31,8 +31,8 @@ func NewProductRepository(db *sql.DB) ProductRepository {
 	return &productRepository{db: db}
 }
 
-func (b *productRepository) SelectAll(ctx context.Context) ([]*Product, error) {
-	db := b.db
+func (p *productRepository) SelectAll(ctx context.Context) ([]*Product, error) {
+	db := p.db
 
 	// query
 	query := "SELECT product_id, name, type, brand, color, cost, size, category image_name FROM products"
@@ -70,8 +70,8 @@ func (b *productRepository) SelectAll(ctx context.Context) ([]*Product, error) {
 
 }
 
-func (b *productRepository) Insert(ctx context.Context, product *Product) error {
-	db := b.db
+func (p *productRepository) Insert(ctx context.Context, product *Product) error {
+	db := p.db
 
 	// query
 	query := `
@@ -103,8 +103,8 @@ func (b *productRepository) Insert(ctx context.Context, product *Product) error 
 	return nil
 }
 
-func (b *productRepository) SelectByID(ctx context.Context, productID int) (*Product, error) {
-	db := b.db
+func (p *productRepository) SelectByID(ctx context.Context, productID int) (*Product, error) {
+	db := p.db
 
 	var product Product
 	// query
