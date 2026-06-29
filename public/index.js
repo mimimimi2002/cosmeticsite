@@ -1017,7 +1017,7 @@
     let cost = gen("p");
     cost.textContent = "$" + productDetails.cost;
 
-    let buttonsStockContainer = createButtonsStockContainer(productId);
+    let buttonsStockContainer = createButtonsStockContainer(productId, productDetails.quantity);
 
     productDetailsContainer.appendChild(brand);
     productDetailsContainer.appendChild(name);
@@ -1034,7 +1034,7 @@
    * @param {string} productId - The ID of the product.
    * @returns {HTMLElement} - The buttons and stock container element.
    */
-  function createButtonsStockContainer(productId) {
+  function createButtonsStockContainer(productId, quantity) {
     const star = 5;
     let buttonsStockContainer = gen("p");
 
@@ -1044,6 +1044,9 @@
       option.value = i;
       option.textContent = i;
       select.appendChild(option);
+    }
+    if (quantity) {
+      select.value = quantity;
     }
     select.addEventListener("change", async function() {
       await saveQuantityCart(this, productId);
@@ -1077,11 +1080,10 @@
     try {
       let data = new FormData();
       data.append("quantity", quantity);
-      data.append("productId", productId);
 
       let sessionId = sessionStorage.getItem("session_id");
-      let response = await fetch("/cart/update/quantity", {
-        method: "POST",
+      let response = await fetch("/carts/" + productId, {
+        method: "PATCH",
         headers: {
           "Authorization": `Bearer ${sessionId}`
         },

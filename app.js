@@ -559,7 +559,7 @@ app.delete("/carts/:productId", async (req, res) => {
 /**
  * Update the products of quantity in cart when session ID is valid.
  */
-app.post("/cart/update/quantity", async (req, res) => {
+app.patch("/carts/:productId", async (req, res) => {
   const authHeader = req.headers.authorization;
 
   if (!authHeader) {
@@ -569,7 +569,7 @@ app.post("/cart/update/quantity", async (req, res) => {
   const sessionId = authHeader.replace("Bearer ", "");
   try {
     let quantity = req.body.quantity;
-    let productId = req.body.productId;
+    let productId = req.params.productId;
 
     if (!productId || !quantity) {
       res.status(USER_PARAMETER_ERROR).type("text")
@@ -622,7 +622,7 @@ app.get("/cart/get", async (req, res) => {
         .send("Session ID is is invalid");
     } else {
       let userId = results[0]["user_id"];
-      query = `SELECT p.product_id, p.name, p.brand, p.color, p.size, p.cost FROM cart c 
+      query = `SELECT p.product_id, p.name, p.brand, p.color, p.size, p.cost, c.quantity FROM cart c
       JOIN products p ON p.product_id = c.product_id
       WHERE c.user_id = ?`;
       results = await db.all(query, userId);
