@@ -113,71 +113,45 @@ app.get("/products/:id", async (req, res) => {
 /**
  * Create a new account. If the information if unique, update database.
  */
-app.post("/newaccount/noicon", async (req, res) => {
-  const {username, email, password, phone, cardNumber, fund, shippingAddress} = req.body;
+app.post("/accounts", async (req, res) => {
+  const {
+    username, email, password, phone,
+    cardNumber, fund, shippingAddress, imgpath
+  } = req.body;
 
   if (!username || !email || !password || !phone || !cardNumber || !fund || !shippingAddress) {
-    return res.status(USER_PARAMETER_ERROR).type("text")
-      .send("Username, email, password, phone, cardNumber, fund, or shippingAddress is missing");
+    return res.status(400).send("missing fields");
   }
 
-  try {
-    let db = await getDBConnection();
-    let duplicateField = await findDuplicateUserField(db, username, email, phone);
+  let db;
 
+  try {
+    db = await getDBConnection();
+
+    const duplicateField = await findDuplicateUserField(db, username, email, phone);
     if (duplicateField) {
-      await db.close();
-      return res.status(USER_PARAMETER_ERROR).type("text")
-        .send(`Please enter a different ${duplicateField}`);
+      return res.status(400).send(`duplicate ${duplicateField}`);
     }
 
     let query = `
-    INSERT INTO user (username, email, password, phone, card_number, fund, shipping_address)
-    VALUES (?, ?, ?, ?, ?, ?, ?)`;
-    await db.run(query, [username, email, password, phone, cardNumber, fund, shippingAddress]);
+      INSERT INTO user
+      (username, email, password, phone, card_number, fund, shipping_address, imgpath)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+    `;
 
-    await db.close();
-    res.type("text").send("successful");
+    await db.run(query, [
+      username, email, password, phone,
+      cardNumber, fund, shippingAddress, imgpath || null
+    ]);
+
+    res.send("successful");
+
   } catch (err) {
-    res.status(SERVER_ERROR).type("text")
-      .send("Something is wrong with the server");
-  }
-});
+    console.error(err);
+    res.status(500).send("server error");
 
-/**
- * Create a new account. If the information if unique, update database.
- */
-app.post("/newaccount/icon", async (req, res) => {
-  const {username, email, password, phone, cardNumber, fund, shippingAddress, imgpath} = req.body;
-
-  if (!username || !email || !password || !phone || !cardNumber || !fund ||
-    !shippingAddress || !imgpath) {
-    return res.status(USER_PARAMETER_ERROR).type("text")
-      .send(`Username, email, password, phone, cardNumber, fund, or shippingAddress or
-      imgpath is missing`);
-  }
-
-  try {
-    let db = await getDBConnection();
-    let duplicateField = await findDuplicateUserField(db, username, email, phone);
-
-    if (duplicateField) {
-      await db.close();
-      return res.status(USER_PARAMETER_ERROR).type("text")
-        .send(`Please enter a different ${duplicateField}`);
-    }
-
-    let query = `
-    INSERT INTO user
-    (username, email, password, phone, card_number, fund, shipping_address, imgpath)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?)`;
-    await db.run(query, [username, email, password, phone, cardNumber, fund,
-    shippingAddress, imgpath]);
-    await db.close();
-    res.type("text").send("successful");
-  } catch (err) {
-    res.status(SERVER_ERROR).type("text")
-      .send("Something is wrong with the server");
+  } finally {
+    if (db) await db.close();
   }
 });
 

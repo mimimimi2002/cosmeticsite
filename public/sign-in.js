@@ -181,7 +181,7 @@
     let data = createFormData();
 
     try {
-      let response = await fetch("/newaccount/icon", {method: "POST", body: data});
+      let response = await fetch("/accounts/", {method: "POST", body: data});
       await statusCheck(response);
       response = await response.text();
 
