@@ -277,20 +277,30 @@ app.post("/reviews", async (req, res) => {
 /**
  * Returns a json file of information of user if the session ID is valid.
  */
-app.get("/userinfo/:sessionId", async (req, res) => {
-  let sessionId = req.params.sessionId;
+app.get("/users/me", async (req, res) => {
+  const authHeader = req.headers.authorization;
+
+  if (!authHeader) {
+    return res.status(401).send("no token");
+  }
+
+  const sessionId = authHeader.replace("Bearer ", "");
+  let db;
   try {
-    let db = await getDBConnection();
+    db = await getDBConnection();
     let userInfo = await getUserAllInfo(db, sessionId);
 
     if (userInfo.length === 0) {
       return handleInvalidSession(db, res);
     }
-    await db.close();
     res.json(userInfo);
   } catch (err) {
     res.status(SERVER_ERROR).type("text")
       .send("Something is wrong with server. Please try again.");
+  } finally {
+    if (db) {
+      db.close();
+    }
   }
 });
 

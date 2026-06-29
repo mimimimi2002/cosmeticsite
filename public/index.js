@@ -310,7 +310,14 @@
     let sessionId = sessionStorage.getItem("session_id");
     if (sessionId) {
       try {
-        let res = await fetch("/userinfo/" + sessionId);
+        let sessionId = sessionStorage.getItem("session_id");
+
+        let res = await fetch("/users/me", {
+          method: "GET",
+          headers: {
+            "Authorization": `Bearer ${sessionId}`
+          }
+        });
         await statusCheck(res);
         res = await res.json();
 
