@@ -427,7 +427,7 @@ app.post("/signout", async (req, res) => {
 /**
  * Edit user information when sessionId is valid.
  */
-app.post("/edit/userinfo", async (req, res) => {
+app.patch("/users", async (req, res) => {
   const authHeader = req.headers.authorization;
 
   if (!authHeader) {
@@ -447,8 +447,7 @@ app.post("/edit/userinfo", async (req, res) => {
     let userId = await getUserIdFromSession(db, sessionId);
 
     if (!userId) {
-      await db.close();
-      return handleInvalidSession(res);
+      return handleInvalidSession(db, res);
     }
 
     let returnResults = {"success": null, "fail": null};

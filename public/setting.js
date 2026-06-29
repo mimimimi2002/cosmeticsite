@@ -181,8 +181,8 @@
     data.append("input", input);
     data.append("column", column);
     try {
-      let response = await fetch("/edit/userinfo", {
-        method: "POST",
+      let response = await fetch("/users", {
+        method: "PATCH",
         headers: {
           "Authorization": `Bearer ${sessionId}`
         },
