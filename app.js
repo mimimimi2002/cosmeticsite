@@ -196,35 +196,39 @@ app.post("/signin", async (req, res) => {
 /**
  * Returns the reveiew information of the given product's id.
  */
-app.get("/review", async (req, res) => {
+app.get("/reviews", async (req, res) => {
   let productId = req.query.id;
   if (!productId) {
     res.status(USER_PARAMETER_ERROR).type("text")
       .send("Product ID is missing.");
-  } else {
-    try {
-      let db = await getDBConnection();
+    return
+  }
+  let db;
+  try {
+    db = await getDBConnection();
 
-      let results = await db.all(`SELECT u.username, u.imgpath, r.rating, r.comment FROM review r
-        JOIN user u ON r.user_id = u.user_id WHERE product_id = ?`, productId);
-      let allratings = 0.0;
-      for (let i = 0; i < results.length; i++) {
-        allratings += parseInt(results[i].rating);
-      }
-      let avgRating = 0.0;
-      if (results.length > 0) {
-        avgRating = allratings / results.length;
-      }
-      let returnResults = {
-        "avgRating": avgRating,
-        "reviews": results
-      };
+    let results = await db.all(`SELECT u.username, u.imgpath, r.rating, r.comment FROM review r
+      JOIN user u ON r.user_id = u.user_id WHERE product_id = ?`, productId);
+    let allratings = 0.0;
+    for (let i = 0; i < results.length; i++) {
+      allratings += parseInt(results[i].rating);
+    }
+    let avgRating = 0.0;
+    if (results.length > 0) {
+      avgRating = allratings / results.length;
+    }
+    let returnResults = {
+      "avgRating": avgRating,
+      "reviews": results
+    };
 
+    res.json(returnResults);
+  } catch (err) {
+    res.status(SERVER_ERROR).type("text")
+      .send("Something is wrong with server. Please try again");
+  } finally {
+    if (db) {
       await db.close();
-      res.json(returnResults);
-    } catch (err) {
-      res.status(SERVER_ERROR).type("text")
-        .send("Something is wrong with server. Please try again");
     }
   }
 });

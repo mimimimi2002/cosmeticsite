@@ -1121,7 +1121,7 @@
    */
   async function getRating(productId) {
     try {
-      let response = await fetch("/review?id=" + productId);
+      let response = await fetch("/reviews?id=" + productId);
       await statusCheck(response);
       response = await response.json();
       displayReviews(response);
