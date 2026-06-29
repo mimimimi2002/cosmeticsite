@@ -7,7 +7,6 @@ CREATE TABLE users (
   card_number TEXT NOT NULL,
   fund INTEGER NOT NULL,
   shipping_address TEXT NOT NULL,
-  imgpath TEXT
 );
 
 CREATE TABLE sessions (
