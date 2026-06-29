@@ -43,10 +43,12 @@ func (s Server) Run() int {
 	// Repository
 	productRepo := repository.NewProductRepository(db)
 	userRepo := repository.NewUserRepository(db)
+	reviewRepo := repository.NewReviewRepository(db)
 
 	// Handlers
 	productHandler := handlers.NewProductHandler(s.ImagePath, productRepo)
 	userHandler := handlers.NewUserHandler(userRepo)
+	reviewHandler := handlers.NewReviewHandler(reviewRepo)
 
 	// multiplexer routing
 	mux := http.NewServeMux()
@@ -58,6 +60,9 @@ func (s Server) Run() int {
 	mux.HandleFunc("POST /users", userHandler.AddUser)
 	mux.HandleFunc("GET /users", userHandler.GetUsers)
 	mux.HandleFunc("GET /users/{user_id}", userHandler.GetUserByID)
+	mux.HandleFunc("POST /reviews", reviewHandler.AddReview)
+	mux.HandleFunc("GET /reviews", reviewHandler.GetReviews)
+	mux.HandleFunc("GET /products/{product_id}/reviews", reviewHandler.GetReviewsByProductID)
 
 	// start the server
 	slog.Info("http server started on", "port", s.Port)
