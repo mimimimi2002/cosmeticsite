@@ -237,7 +237,15 @@ app.get("/reviews", async (req, res) => {
  * Submit the review of specific product and  update the database if sessionID is valid.
  */
 app.post("/reviews", async (req, res) => {
-  const {rating, comment, sessionId, productId} = req.body;
+  const {rating, comment, productId} = req.body;
+
+  const authHeader = req.headers.authorization;
+
+  if (!authHeader) {
+    return res.status(401).send("no token");
+  }
+
+  const sessionId = authHeader.replace("Bearer ", "");
 
   // if the comment is "" it accepts it.
   if (!productId || !rating || (comment !== "" && !comment)) {

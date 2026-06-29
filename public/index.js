@@ -883,12 +883,14 @@
       let data = new FormData();
       data.append("rating", rating);
       data.append("comment", comment);
-      data.append("sessionId", sessionId);
       data.append("productId", productId)
 
       let res = await fetch("/reviews", {
         method: "POST",
-        body: data
+        body: data,
+        headers: {
+          "Authorization": `Bearer ${sessionId}`
+        }
       });
       await statusCheck(res);
       res = await res.text();
