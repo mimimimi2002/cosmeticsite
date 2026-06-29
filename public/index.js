@@ -476,7 +476,7 @@
     try {
 
       // get information of all products
-      let result = await fetch("/all");
+      let result = await fetch("/products");
       await statusCheck(result);
       result = await result.json();
       displayAllProducts(result.products);
