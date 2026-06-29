@@ -60,8 +60,9 @@ app.get("/search", async (req, res) => {
       .send("Search query or type is missing.");
   }
 
+  let db;
   try {
-    let db = await getDBConnection();
+    db = await getDBConnection();
     query = query.trim();
     let results = await searchProducts(db, query, type);
 
@@ -71,11 +72,11 @@ app.get("/search", async (req, res) => {
       res.status(USER_PARAMETER_ERROR).type("text")
         .send("No matching products found.");
     }
-
-    await db.close();
   } catch (err) {
     res.status(SERVER_ERROR).type("text")
       .send("Something is wrong with server. Please try again.");
+  } finally {
+    if (db) await db.close();
   }
 });
 
@@ -86,7 +87,7 @@ app.get("/products/:id", async (req, res) => {
   let productId = req.params.id;
   let db;
   try {
-    let db = await getDBConnection();
+    db = await getDBConnection();
 
     // get all information of product that matches product_id
     let query = `
@@ -167,12 +168,12 @@ app.post("/signin", async (req, res) => {
       .send("Username or password is missing");
   }
 
+  let db;
   try {
-    const db = await getDBConnection();
+    db = await getDBConnection();
 
     const user = await validateUser(db, username, password);
     if (!user) {
-      await db.close();
       return res.status(USER_PARAMETER_ERROR).type("text")
         .send("Username or password is wrong");
     }
@@ -184,12 +185,13 @@ app.post("/signin", async (req, res) => {
       "INSERT INTO session (session_id, user_id) VALUES (?, ?)",
       [sessionId, userId]
     );
-    await db.close();
 
     res.type("text").send(String(sessionId));
   } catch (err) {
     res.status(SERVER_ERROR).type("text")
       .send("Something is wrong with the server. Please try again");
+  } finally {
+    if (db) await db.close();
   }
 });
 
@@ -299,7 +301,7 @@ app.get("/users/me", async (req, res) => {
     let userInfo = await getUserAllInfo(db, sessionId);
 
     if (userInfo.length === 0) {
-      return handleInvalidSession(db, res);
+      return handleInvalidSession(res);
     }
     res.json(userInfo);
   } catch (err) {
@@ -402,13 +404,13 @@ app.post("/signout", async (req, res) => {
   }
 
   const sessionId = authHeader.replace("Bearer ", "");
+  let db;
   try {
-    let db = await getDBConnection();
+    db = await getDBConnection();
     let results = await db.all("SELECT * FROM session WHERE session_id = ?", sessionId);
 
     // session ID is not valid
     if (results.length === 0) {
-      await db.close();
       res.status(USER_PARAMETER_ERROR).type("text")
         .send("Session ID is invalid. Please close the browser and try again.");
     } else {
@@ -421,6 +423,8 @@ app.post("/signout", async (req, res) => {
   } catch (err) {
     res.status(SERVER_ERROR).type("text")
       .send("Something is wrong with server");
+  } finally {
+    if (db) await db.close();
   }
 });
 
@@ -442,12 +446,13 @@ app.patch("/users", async (req, res) => {
       .send("Invalid column or input");
   }
 
+  let db;
   try {
-    let db = await getDBConnection();
+    db = await getDBConnection();
     let userId = await getUserIdFromSession(db, sessionId);
 
     if (!userId) {
-      return handleInvalidSession(db, res);
+      return handleInvalidSession(res);
     }
 
     let returnResults = {"success": null, "fail": null};
@@ -463,11 +468,12 @@ app.patch("/users", async (req, res) => {
       returnResults.success = ("Successfully update " + column + " information!");
     }
 
-    await db.close();
     res.json(returnResults);
   } catch (err) {
     res.status(SERVER_ERROR).type("text")
       .send("Something is wrong with server");
+  } finally {
+    if (db) await db.close();
   }
 });
 
@@ -482,6 +488,7 @@ app.post("/carts", async (req, res) => {
   }
 
   const sessionId = authHeader.replace("Bearer ", "");
+  let db;
   try {
     let productId = req.body.productId;
 
@@ -489,28 +496,27 @@ app.post("/carts", async (req, res) => {
       return handleMissingProductId(res);
     }
 
-    let db = await getDBConnection();
+    db = await getDBConnection();
     let userId = await getUserIdFromSession(db, sessionId);
 
     if (!userId) {
-      await db.close();
       return handleInvalidSession(res);
     }
 
     let isProductInCart = await checkIfProductInCart(db, productId, userId);
 
     if (isProductInCart) {
-      await db.close();
       return res.type("text").send("FALSE");
     }
 
     await addProductToCart(db, productId, userId);
-    await db.close();
     res.type("text").send("TRUE");
 
   } catch (err) {
     res.status(SERVER_ERROR).type("text")
       .send("Something is wrong with server");
+  } finally {
+    if (db) await db.close();
   }
 });
 
@@ -525,6 +531,7 @@ app.delete("/carts/:productId", async (req, res) => {
   }
 
   const sessionId = authHeader.replace("Bearer ", "");
+  let db;
   try {
     let productId = req.params.productId;
 
@@ -532,13 +539,12 @@ app.delete("/carts/:productId", async (req, res) => {
       res.status(USER_PARAMETER_ERROR).type("text")
         .send("productId is missing");
     } else {
-      let db = await getDBConnection();
+      db = await getDBConnection();
 
       let query = "SELECT * FROM session WHERE session_id = ?";
       let results = await db.all(query, sessionId);
 
       if (results.length === 0) {
-        await db.close();
         res.status(USER_PARAMETER_ERROR).type("text")
           .send("Session ID is is invalid");
       } else {
@@ -546,13 +552,14 @@ app.delete("/carts/:productId", async (req, res) => {
         query = "DELETE FROM cart WHERE product_id = ? AND user_id = ?";
         await db.run(query, [productId, userId]);
 
-        await db.close();
         res.type("text").send("Successfully remove from cart");
       }
     }
   } catch (err) {
     res.status(SERVER_ERROR).type("text")
       .send("Something is wrong with server");
+  } finally {
+    if (db) await db.close();
   }
 });
 
@@ -567,6 +574,7 @@ app.patch("/carts/:productId", async (req, res) => {
   }
 
   const sessionId = authHeader.replace("Bearer ", "");
+  let db;
   try {
     let quantity = req.body.quantity;
     let productId = req.params.productId;
@@ -575,13 +583,12 @@ app.patch("/carts/:productId", async (req, res) => {
       res.status(USER_PARAMETER_ERROR).type("text")
         .send("productId or quantity is missing");
     } else {
-      let db = await getDBConnection();
+      db = await getDBConnection();
 
       let query = "SELECT * FROM session WHERE session_id = ?";
       let results = await db.all(query, sessionId);
 
       if (results.length === 0) {
-        await db.close();
         res.status(USER_PARAMETER_ERROR).type("text")
           .send("Session ID is is invalid");
       } else {
@@ -589,13 +596,14 @@ app.patch("/carts/:productId", async (req, res) => {
         query = "UPDATE cart SET quantity = ? WHERE product_id = ? AND user_id = ?";
         await db.run(query, [quantity, productId, userId]);
 
-        await db.close();
         res.type("text").send("Successfully update quantity");
       }
     }
   } catch (err) {
     res.status(SERVER_ERROR).type("text")
       .send("Something is wrong with server");
+  } finally {
+    if (db) await db.close();
   }
 });
 
@@ -610,14 +618,14 @@ app.get("/carts", async (req, res) => {
   }
 
   const sessionId = authHeader.replace("Bearer ", "");
+  let db;
   try {
-    let db = await getDBConnection();
+    db = await getDBConnection();
 
     let query = "SELECT * FROM session WHERE session_id = ?";
     let results = await db.all(query, sessionId);
 
     if (results.length === 0) {
-      await db.close();
       res.status(USER_PARAMETER_ERROR).type("text")
         .send("Session ID is is invalid");
     } else {
@@ -626,12 +634,13 @@ app.get("/carts", async (req, res) => {
       JOIN products p ON p.product_id = c.product_id
       WHERE c.user_id = ?`;
       results = await db.all(query, userId);
-      await db.close();
       res.json(results);
     }
   } catch (err) {
     res.status(SERVER_ERROR).type("text")
       .send("Something is wrong with server");
+  } finally {
+    if (db) await db.close();
   }
 });
 
@@ -646,61 +655,44 @@ app.post("/purchases", async (req, res) => {
   }
 
   const sessionId = authHeader.replace("Bearer ", "");
+  let db;
   try {
-    let db = await getDBConnection();
+    db = await getDBConnection();
     let userInfo = await getUserInfo(db, sessionId);
 
     if (userInfo.length === 0) {
-      return handleInvalidSession(db, res);
+      return res.status(USER_PARAMETER_ERROR).type("text")
+        .send("Session ID is invalid");
     }
 
     let userId = userInfo[0].user_id;
     let cartItems = await getCartInfo(db, userId);
     if (cartItems.length === 0) {
-      return handleEmptyCart(db, res);
+      return res.status(USER_PARAMETER_ERROR).type("text")
+        .send("Cart is empty");
     }
 
     let transaction = await processPurchase(db, userId, cartItems);
-    await db.close();
     res.json(transaction);
 
   } catch (err) {
     res.status(SERVER_ERROR).type("text")
       .send("Something is wrong with server. Please try again.");
+  } finally {
+    if (db) await db.close();
   }
 });
 
 /**
- * Handles an invalid session by closing the database connection and sending an error response.
- * This function is invoked when the session ID is not valid, ensuring that the database
- * connection is closed
- * and an appropriate error message is sent to the client.
+ * Handles an invalid session by sending an error response to the client.
+ * The caller is responsible for closing the database connection (e.g. in a finally block).
  *
- * @param {Object} db - The database connection object.
  * @param {Object} res - The response object to send an error response to the client.
- * @returns {Promise} - A promise that resolves after closing the database and sending
- *                      the error response.
+ * @returns {void}
  */
-async function handleInvalidSession(db, res) {
-  await db.close();
+function handleInvalidSession(res) {
   res.status(USER_PARAMETER_ERROR).type("text")
     .send("Session ID is invalid");
-}
-
-/**
- * Handles the case when the cart is empty or a server error occurs during the cart processing.
- * This function closes the database connection and sends a server error response to the client,
- * indicating that something went wrong with the server.
- *
- * @param {Object} db - The database connection object.
- * @param {Object} res - The response object used to send an error message to the client.
- * @returns {Promise} - A promise that resolves after closing the database and sending the error
- *                      response.
- */
-async function handleEmptyCart(db, res) {
-  await db.close();
-  res.status(USER_PARAMETER_ERROR).type("text")
-    .send("Something is wrong with server. Please try again.");
 }
 
 /**
