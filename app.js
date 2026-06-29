@@ -315,15 +315,21 @@ app.get("/users/me", async (req, res) => {
 /**
  * Get signed in user's histroy of shopping.
  */
-app.get("/history/:sessionId", async (req, res) => {
-  let sessionId = req.params.sessionId;
+app.get("/histories", async (req, res) => {
+  const authHeader = req.headers.authorization;
+
+  if (!authHeader) {
+    return res.status(401).send("no token");
+  }
+
+  const sessionId = authHeader.replace("Bearer ", "");
+  let db;
   try {
-    let db = await getDBConnection();
+    db = await getDBConnection();
 
     // Get the userId from session
     const userId = await getUserIdFromSession(db, sessionId);
     if (!userId) {
-      await db.close();
       return res.status(USER_PARAMETER_ERROR).type("text")
         .send("Session ID is invalid.");
     }
@@ -344,12 +350,14 @@ app.get("/history/:sessionId", async (req, res) => {
       }
       returnResult.history.push({confirmationId: confirmationId, products: products});
     }
-
-    await db.close();
     res.json(returnResult);
   } catch (err) {
     res.status(SERVER_ERROR).type("text")
       .send("Something is wrong with server");
+  } finally {
+    if (db) {
+      db.close();
+    }
   }
 });
 

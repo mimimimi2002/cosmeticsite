@@ -40,7 +40,12 @@
     try {
       let sessionId = sessionStorage.getItem("session_id");
 
-      let response = await fetch("/history/" + sessionId);
+      let response = await fetch("/histories", {
+        method: "GET",
+        headers: {
+          "Authorization": `Bearer ${sessionId}`
+        }
+      });
       await statusCheck(response);
       response = await response.json();
       showHistory(response);
