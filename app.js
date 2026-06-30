@@ -8,8 +8,11 @@ const sqlite3 = require("sqlite3");
 
 const multer = require("multer");
 
+const bcrypt = require("bcrypt");
+
 const USER_PARAMETER_ERROR = 400;
 const SERVER_ERROR = 500;
+const SALT_ROUNDS = 10;
 
 app.use(express.urlencoded({extended: true}));
 app.use(express.json());
@@ -121,6 +124,7 @@ app.post("/accounts", async (req, res) => {
   } = req.body;
 
   if (!username || !email || !password || !phone || !cardNumber || !fund || !shippingAddress) {
+    console.log("missing?")
     return res.status(400).send("missing fields");
   }
 
@@ -129,7 +133,7 @@ app.post("/accounts", async (req, res) => {
   try {
     db = await getDBConnection();
 
-    const duplicateField = await findDuplicateUserField(db, username, email, phone);
+    const duplicateField = await findDuplicateUserField(db, username);
     if (duplicateField) {
       return res.status(400).send(`duplicate ${duplicateField}`);
     }
@@ -140,15 +144,17 @@ app.post("/accounts", async (req, res) => {
       VALUES (?, ?, ?, ?, ?, ?, ?, ?)
     `;
 
+    // hash password before storing
+    let hashedPassword = await hashPassword(password);
+
     await db.run(query, [
-      username, email, password, phone,
+      username, email, hashedPassword, phone,
       cardNumber, fund, shippingAddress, imgpath || null
     ]);
 
     res.send("successful");
 
   } catch (err) {
-    console.error(err);
     res.status(500).send("server error");
 
   } finally {
@@ -464,7 +470,9 @@ app.patch("/users", async (req, res) => {
 
     // for other column, update without checking duplication
     } else {
-      await db.run("UPDATE user SET " + column + " = ? WHERE user_id = ?", [input, userId]);
+      // hash the password before storing, store other columns as-is
+      let value = column === "password" ? await hashPassword(input) : input;
+      await db.run("UPDATE user SET " + column + " = ? WHERE user_id = ?", [value, userId]);
       returnResults.success = ("Successfully update " + column + " information!");
     }
 
@@ -745,6 +753,23 @@ async function processPurchase(db, userId, cartItems) {
   return transaction;
 }
 
+// hash the password
+async function hashPassword(password, saltRounds=10) {
+  const hash = await bcrypt.hash(password, saltRounds);
+  return hash;
+}
+
+// check hashed password is valid
+async function checkPassword(password, hashedPassword) {
+  const isMatch = await bcrypt.compare(password, hashedPassword);
+
+  if (isMatch) {
+    return true;
+  } else {
+    return false;
+  }
+}
+
 /**
  * Retrieves user information based on the session ID.
  * This function queries the database to fetch the username and user_id from the 'user' table
@@ -773,7 +798,7 @@ async function getUserInfo(db, sessionId) {
  */
 async function getUserAllInfo(db, sessionId) {
   const query = `
-    SELECT u.username, u.email, u.password, u.phone, u.fund, u.shipping_address, u.imgpath
+    SELECT u.username, u.email, u.phone, u.fund, u.shipping_address, u.imgpath
     FROM session s
     JOIN user u ON u.user_id = s.user_id
     WHERE s.session_id = ?`;
@@ -1049,30 +1074,18 @@ async function searchByQueryAndType(db, searchQuery, type) {
 
 /**
  * Checks for duplicate user fields in the database.
- * Verifies if the provided username, email, or phone number already exists in the `user` table.
+ * Verifies if the provided username already exists in the `user` table.
  *
  * @param {object} db - The database connection object.
  * @param {string} username - The username to check for duplicates.
- * @param {string} email - The email to check for duplicates.
- * @param {string} phone - The phone number to check for duplicates.
  * @returns {Promise<string|null>} - Returns the name of the duplicate field
  *                                   ("username", "email", or "phone number"),
  *                                   or `null` if no duplicates are found.
  */
-async function findDuplicateUserField(db, username, email, phone) {
+async function findDuplicateUserField(db, username) {
   let usernameResult = await db.all("SELECT * FROM user WHERE username = ?", username);
   if (usernameResult.length > 0) {
     return "username";
-  }
-
-  let emailResult = await db.all("SELECT * FROM user WHERE email = ?", email);
-  if (emailResult.length > 0) {
-    return "email";
-  }
-
-  let phoneResult = await db.all("SELECT * FROM user WHERE phone = ?", phone);
-  if (phoneResult.length > 0) {
-    return "phone number";
   }
 
   return null;
@@ -1100,6 +1113,15 @@ async function findDuplicateUserField(db, username, email, phone) {
 }
 
 /**
+ * Hashes a plaintext password using bcrypt so that raw passwords are never stored.
+ * @param {string} password - The plaintext password to hash.
+ * @returns {Promise<string>} - A promise that resolves to the bcrypt hash of the password.
+ */
+async function hashPassword(password) {
+  return await bcrypt.hash(password, SALT_ROUNDS);
+}
+
+/**
  * Validates a user's credentials by checking the username and password against the database.
  * @param {object} db - The database connection object.
  * @param {string} username - The username provided by the user.
@@ -1109,10 +1131,16 @@ async function findDuplicateUserField(db, username, email, phone) {
  */
 async function validateUser(db, username, password) {
   const results = await db.all(
-    "SELECT * FROM user WHERE username = ? AND password = ?",
-    [username, password]
+    "SELECT * FROM user WHERE username = ?",
+    username
   );
-  return results.length > 0 ? results[0] : null;
+  if (results.length === 0) {
+    return null;
+  }
+
+  const user = results[0];
+  const passwordMatches = await bcrypt.compare(password, user.password);
+  return passwordMatches ? user : null;
 }
 
 /**

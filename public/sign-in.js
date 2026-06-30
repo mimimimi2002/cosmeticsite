@@ -182,6 +182,7 @@
 
     try {
       let response = await fetch("/accounts/", {method: "POST", body: data});
+      console.log(response.body)
       await statusCheck(response);
       response = await response.text();
 
