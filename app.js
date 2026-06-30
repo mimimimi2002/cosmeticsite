@@ -263,7 +263,7 @@ app.post("/reviews", async (req, res) => {
 
       if (!userId) {
         await db.close();
-        return res.status(USER_PARAMETER_ERROR).type("text")
+        return res.status(401).type("text")
           .send("Session ID is invalid.");
       }
 
@@ -332,7 +332,7 @@ app.get("/histories", async (req, res) => {
     // Get the userId from session
     const userId = await getUserIdFromSession(db, sessionId);
     if (!userId) {
-      return res.status(USER_PARAMETER_ERROR).type("text")
+      return res.status(401).type("text")
         .send("Session ID is invalid.");
     }
 
