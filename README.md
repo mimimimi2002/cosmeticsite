@@ -5,7 +5,7 @@ A full-stack e-commerce website for selling cosmetics. Users can browse and sear
 ![Screenshot of the site](data/screenshot.png)
 
 ## Demo
-https://drive.google.com/file/d/1mLw3twmyVkwkMYlypkbivFtBmiVQuAKV/view?usp=sharing
+https://github.com/user-attachments/assets/c3ef1c43-2e84-45a1-951f-3950d88fe61b
 
 ## Features
 
