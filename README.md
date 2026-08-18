@@ -2,8 +2,6 @@
 
 A full-stack e-commerce website for selling cosmetics. Users can browse and search products, register / log in, manage a cart, make purchases, post reviews, and view their order history. The frontend is built with vanilla HTML / CSS / JavaScript, the backend with Node.js (Express), and data is stored in SQLite.
 
-![Screenshot of the site](data/screenshot.png)
-
 ## Demo
 https://github.com/user-attachments/assets/c3ef1c43-2e84-45a1-951f-3950d88fe61b
 
