@@ -971,8 +971,13 @@ async function handleSuccessfulPurchase(db, cartItems, userFund, userId) {
   let successfulProducts = [];
 
   for (let item of cartItems) {
-    let updateStockQuery = `UPDATE inventory SET stock = stock - ? WHERE product_id = ?`;
-    await db.run(updateStockQuery, [item.quantity, item.product_id]);
+    let updateStockQuery = `UPDATE inventory SET stock = stock - ? WHERE product_id = ? AND stock >= ?`;
+    const result = await db.run(updateStockQuery, [item.quantity, item.product_id, item.quantity]);
+
+    // prevent race condition
+    if (result.changes === 0) {
+      throw new Error("Insufficient stock");
+    }
 
     let updateUserFundQuery = `UPDATE user SET fund = ? WHERE user_id = ?`;
     await db.run(updateUserFundQuery, [userFund, userId]);
