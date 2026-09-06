@@ -744,13 +744,21 @@ async function processPurchase(db, userId, cartItems) {
     return transaction;
   }
 
-  let {confirmationId, successfulProducts} =
-  await handleSuccessfulPurchase(db, cartItems, userFund, userId);
-  transaction.successful.confirmation.push(confirmationId);
-  transaction.successful.products = successfulProducts;
+  try {
+    await db.exec("BEGIN TRANSACTION");
+    let {confirmationId, successfulProducts} =
+    await handleSuccessfulPurchase(db, cartItems, userFund, userId);
+    await deleteCartInfo(db, userId);
+    await db.exec("COMMIT")
 
-  await deleteCartInfo(db, userId);
-  return transaction;
+    transaction.successful.confirmation.push(confirmationId);
+    transaction.successful.products = successfulProducts;
+
+    return transaction;
+  } catch(err) {
+    await db.exec("ROLLBACK");
+    throw err;
+  }
 }
 
 // hash the password
