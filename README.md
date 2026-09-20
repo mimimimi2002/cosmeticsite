@@ -34,7 +34,7 @@ https://github.com/user-attachments/assets/c3ef1c43-2e84-45a1-951f-3950d88fe61b
 ## Setup & Run
 
 ```bash
-npm install
+npm install sqlite sqlite3 multer bcrypt
 node app.js
 ```
 
