@@ -1,0 +1,29 @@
+product_id,name,type,brand,color,cost,size,category
+1,"Soft Pinch Liquid Blush",blush,"Rare Beauty",pink,23,7.5,makeup
+2,"Creamy Concealer",conceler,Nars,Vanilla,32,6,makeup
+3,"Naturally Longwear Foundation",foundation,"Fenty Beauty",nude,40,31,makeup
+4,"Hydrating Treatment for hair",hairtreatment,"Kérastase",brown,60,90,hair
+5,"Butter Hand Cream",handcream,"L'Occitane",white,30,150,bathbody
+6,"Lengthen and Lift Mascara",handcream,REFY,black,26,10,makeup
+7,"Hydrating Hand Sanitizer",handsanitizer,Touchland,pink,16,30,fragrance
+8,"Infusion d'Iris Eau de Parfum",perfume,Prada,green,180,100,fragrance
+9,"Oil Control Serum",skincare,"The Ordinary",clear,6,30,skincare
+10,"Forever Liquid Sequin Lipstick",lipstick,Dior,red,49,6,makeup
+11,"Refillable Radiant Setting Powder",powder,Valentino,nude,205,0.5,makeup
+12,"Waterproof Gel Eyeliner",eyeliner,Kosas,blak,24,0.35,makeup
+13,"Cowboy Glitter Eyeshadow Quad",eyeshadow,"Urban Decay",pink,39,30,makeup
+14,"Cream Bronzer Stick",bronzer,"Rare Beauty",nude,26,7,makeup
+15,"Translucent Highlighter Duo",highlighter,"Patrick TA",dimond,40,4,makeup
+16,"Watermelon Juice Moisturizer",skincare,"Glow Recipe",pink,20,15,skincare
+17,"Hydration Serum with Hyaluronic Acid",skincare,"Drunk Elephant",clear,49,50,skincare
+18,"Brightening and Firming Face Oil",skincare,Biossance,clear,79,30,skincare
+19,"Strengthening Hair Repair Shampoo",shampoo,Olaplex,white,30,250,hair
+20,"Molecular Repair Hair Mask",hairmask,K18,white,75,50,hair
+21,"Special Edition Airwrap",hairairwrap,Dyson,black,599,100,hair
+22,"English Pear and Sweet Pea Cologne",perfume,"Jo Malone",clear,165,100,fragrance
+23,"Lost Cherry Eau de Parfum Fragrance",perfume,"Tom Ford",clear,615,100,fragrance
+24,"Miss Dior Eau de Parfum",perfume,Dior,clear,172,50,fragrance
+25,"Magic Body Cream",bodycream,"Charlotte Tilbury",white,65,200,bathbody
+26,"Body Firming and Toning Treatment Oil",bodyoil,Clarins,clear,72,100,bathbody
+27,"Brightening and Cleansing Body Bar",bodysoap,Topicals,pink,28,200,bathbody
+28,"Body Wash with Niacinamide + Probiotic",bodywash,"Salt and Stone",clear,36,449,bathbody

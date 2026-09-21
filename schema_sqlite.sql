@@ -3,8 +3,8 @@ CREATE TABLE users (
   username TEXT NOT NULL UNIQUE,
   email TEXT NOT NULL UNIQUE,
   password TEXT NOT NULL,
-  phone INTEGER NOT NULL UNIQUE,
-  card_number INTEGER NOT NULL,
+  phone TEXT NOT NULL UNIQUE,
+  card_number TEXT NOT NULL,
   fund INTEGER NOT NULL,
   shipping_address TEXT NOT NULL,
   imgpath TEXT
@@ -22,7 +22,7 @@ CREATE TABLE products (
 );
 
 CREATE TABLE sessions (
-  session_id INTEGER PRIMARY KEY,
+  session_id TEXT PRIMARY KEY,
   user_id INTEGER NOT NULL,
 
   CONSTRAINT fk_user_id
@@ -45,7 +45,7 @@ CREATE TABLE reviews (
 
 CREATE TABLE purchases (
   history_id INTEGER PRIMARY KEY,
-  confirmation_id INTEGER NOT NULL,
+  confirmation_id TEXT NOT NULL,
   user_id INTEGER NOT NULL,
   product_id INTEGER NOT NULL,
   quantity INTEGER NOT NULL,
