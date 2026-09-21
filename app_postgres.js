@@ -11,13 +11,6 @@ const ResponseCode = {
 const express = require("express");
 const app = express();
 
-const net = require("net");
-
-const cache = net.createConnection({
-  host: "127.0.0.1",
-  port : 1234
-})
-
 const cache_client = require("./cache_client");
 
 const { Pool } = require("pg");
