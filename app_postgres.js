@@ -732,6 +732,21 @@ app.post("/purchases", async (req, res) => {
     }
 
     const transaction = await processPurchase(userId, cartItems);
+
+    for (const item of cartItems) {
+      const { resCode } = await cache_client.del(
+        `product:${item["product_id"]}`
+      );
+
+      if (
+        resCode === ResponseCode.OK ||
+        resCode === ResponseCode.NOT_FOUND
+      ) {
+        console.log("successfully deleted cache");
+      } else {
+        return;
+      }
+    }
     res.json(transaction);
 
   } catch (err) {

@@ -108,7 +108,7 @@ class CacheClient {
   }
 
   del(key) {
-    return this.sendRequest(["del"], key);
+    return this.sendRequest(["del", key]);
   }
 
 }
