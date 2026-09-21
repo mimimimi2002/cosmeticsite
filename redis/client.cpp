@@ -23,6 +23,25 @@ static void die(const char *msg) {
 
 static size_t k_max_msg = 4096;
 
+enum ResponseCode {
+    RES_OK = 0,
+    RES_ERR = 1,
+    RES_NOT_FOUND = 2,
+    RES_WRONG_TYPE = 3,
+    RES_INVALID_ARG = 4,
+};
+
+static const char *res_code_str(uint32_t code) {
+    switch (code) {
+        case RES_OK: return "OK";
+        case RES_ERR: return "ERR";
+        case RES_NOT_FOUND: return "NOT_FOUND";
+        case RES_WRONG_TYPE: return "WRONG_TYPE";
+        case RES_INVALID_ARG: return "INVALID_ARG";
+        default: return "UNKNOWN";
+    }
+}
+
 // when reading, the position of buf also moves
 static int32_t read_full(int fd, char* buf, size_t n){
   while (n > 0) {
@@ -85,7 +104,8 @@ static int32_t read_res(int fd) {
     memcpy(&rescode, &rbuf[0], 4);
 
     printf(
-        "server says: %.*s\n",
+        "server says [%s]: %.*s\n",
+        res_code_str(rescode),
         (int)(len - 4),
         &rbuf[4]
     );

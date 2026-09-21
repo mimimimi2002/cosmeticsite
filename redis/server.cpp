@@ -239,53 +239,112 @@ static int32_t parse_req(const uint8_t *body, uint32_t bodylen, std::vector<std:
   return 0;
 }
 
-enum {
-  RES_OK = 0,
-  RES_ERR = 1,
-  RES_NX = 2,
+enum ResponseCode {
+    RES_OK = 0,
+    RES_ERR = 1,
+    RES_NOT_FOUND = 2,
+    RES_WRONG_TYPE = 3,
+    RES_INVALID_ARG = 4,
 };
+
+static const char *res_code_msg(uint32_t code) {
+    switch (code) {
+        case RES_OK: return "OK";
+        case RES_ERR: return "ERR";
+        case RES_NOT_FOUND: return "not found";
+        case RES_WRONG_TYPE: return "wrong type";
+        case RES_INVALID_ARG: return "invalid arg";
+        default: return "ERR";
+    }
+}
+
+static uint32_t out_res(uint8_t *res, uint32_t *reslen, uint32_t code) {
+    const char *msg = res_code_msg(code);
+    size_t n = strlen(msg);
+    memcpy(res, msg, n);
+    *reslen = (uint32_t)n;
+    return code;
+}
+
+static uint32_t out_res_str(
+    uint8_t *res,
+    uint32_t *reslen,
+    uint32_t code,
+    const std::string &msg
+) {
+    assert(msg.size() <= k_max_msg);
+    memcpy(res, msg.data(), msg.size());
+    *reslen = (uint32_t)msg.size();
+    return code;
+}
+
+static bool parse_i64(const std::string &s, int64_t *out) {
+    try {
+        size_t idx = 0;
+        *out = std::stoll(s, &idx, 10);
+        return idx == s.size();
+    } catch (...) {
+        return false;
+    }
+}
+
+static bool parse_double(const std::string &s, double *out) {
+    try {
+        size_t idx = 0;
+        *out = std::stod(s, &idx);
+        return idx == s.size();
+    } catch (...) {
+        return false;
+    }
+}
 
 static uint32_t do_get(const std::vector<std::string> &cmd, uint8_t *res, uint32_t *reslen) {
   if (!g_data.db.count(cmd[1])) {
-    return RES_NX;
+    return out_res(res, reslen, RES_NOT_FOUND);
   }
 
   // only accept string
   if (g_data.db[cmd[1]].type != T_STRING) {
-    return RES_NX;
+    return out_res(res, reslen, RES_WRONG_TYPE);
   }
   std::string &val = g_data.db[cmd[1]].value;
-  assert(val.size() <= k_max_msg);
-  std::string msg = "get " + val;
-  memcpy(res, msg.data(), msg.size());
-  *reslen = (uint32_t)msg.size();
-  return RES_OK;
+  return out_res_str(res, reslen, RES_OK, "get " + val);
 }
 
 static uint32_t do_set(const std::vector<std::string> &cmd, uint8_t *res, uint32_t *reslen) {
-  std::string msg = "set " + cmd[2];
-  memcpy(res, msg.data(), msg.size());
-  *reslen = (uint32_t)msg.size();
-  g_data.db[cmd[1]].value = cmd[2];
-  return RES_OK;
+  Entry &ent = g_data.db[cmd[1]];
+  ent.type = T_STRING;
+  ent.value = cmd[2];
+  return out_res_str(res, reslen, RES_OK, "set " + cmd[2]);
 }
 
 static uint32_t do_expire(const std::vector<std::string> &cmd, uint8_t *res, uint32_t *reslen) {
   if (!g_data.db.count(cmd[1])) {
-    return RES_NX;
+    return out_res(res, reslen, RES_NOT_FOUND);
   }
+
+  int64_t ttl_ms = 0;
+  if (!parse_i64(cmd[2], &ttl_ms)) {
+    return out_res(res, reslen, RES_INVALID_ARG);
+  }
+
   auto it = g_data.db.find(cmd[1]);
-  int64_t ttl_ms = std::stoll(cmd[2]);
-
   entry_set_ttl(cmd[1], it->second, ttl_ms);
-
-  return RES_OK;
+  return out_res(res, reslen, RES_OK);
 }
 
 static uint32_t do_zadd(const std::vector<std::string> &cmd, uint8_t *res, uint32_t *reslen) {
   std::string key = cmd[1];
-  double score = std::stod(cmd[2]);
+  double score = 0;
+  if (!parse_double(cmd[2], &score)) {
+    return out_res(res, reslen, RES_INVALID_ARG);
+  }
   std::string member = cmd[3];
+
+  auto it = g_data.db.find(key);
+  if (it != g_data.db.end() && it->second.type != T_ZSET) {
+    return out_res(res, reslen, RES_WRONG_TYPE);
+  }
 
   // when there is no key, new entry is created
   Entry &ent = g_data.db[key];
@@ -309,20 +368,20 @@ static uint32_t do_zadd(const std::vector<std::string> &cmd, uint8_t *res, uint3
     }
 );
 
-  return RES_OK;
+  return out_res(res, reslen, RES_OK);
 }
 
 static uint32_t do_zrange(const std::vector<std::string> &cmd, uint8_t *res, uint32_t *reslen) {
   if (!g_data.db.count(cmd[1])) {
-    return RES_NX;
+    return out_res(res, reslen, RES_NOT_FOUND);
   }
 
   auto it = g_data.db.find(cmd[1]);
   Entry &ent = it -> second;
 
-  // only accept string
-  if (g_data.db[cmd[1]].type != T_ZSET) {
-    return RES_NX;
+  // only accept zset
+  if (ent.type != T_ZSET) {
+    return out_res(res, reslen, RES_WRONG_TYPE);
   }
   std::string msg = "zrange ";
 
@@ -333,10 +392,7 @@ static uint32_t do_zrange(const std::vector<std::string> &cmd, uint8_t *res, uin
       msg += " ";
   }
 
-  assert(msg.size() <= k_max_msg);
-  memcpy(res, msg.data(), msg.size());
-  *reslen = (uint32_t)msg.size();
-  return RES_OK;
+  return out_res_str(res, reslen, RES_OK, msg);
 }
 
 // should be a long task
@@ -399,12 +455,12 @@ static uint32_t do_del(
     auto it = g_data.db.find(cmd[1]);
 
     if (it == g_data.db.end()) {
-        return RES_NX;
+        return out_res(res, reslen, RES_NOT_FOUND);
     }
 
     entry_del(it);
 
-    return RES_OK;
+    return out_res(res, reslen, RES_OK);
 }
 
 
@@ -432,10 +488,7 @@ static bool do_request(const uint8_t *req, uint32_t reqlen, uint32_t *rescode, u
     *rescode = do_zrange(cmd, res, reslen);
   } else {
     // cmd is not recognized
-    *rescode = RES_ERR;
-    const char *msg = "Unknown cmd";
-    strcpy((char *)res, msg);
-    *reslen = strlen(msg);
+    *rescode = out_res_str(res, reslen, RES_ERR, "Unknown cmd");
     return 0;
   }
   return 0;
