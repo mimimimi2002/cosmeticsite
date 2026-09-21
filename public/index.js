@@ -741,12 +741,16 @@
       {text: productDetails.name},
       {text: `${productDetails.size}ml`},
       {text: productDetails.color},
-      {text: `$${productDetails.cost}`}
+      {text: `$${productDetails.cost}`},
+      {text: `${productDetails.stock} left`, className: "stock"}
     ];
 
     details.forEach(detail => {
       let paragraph = gen("p");
       paragraph.textContent = detail.text;
+      if (detail.className) {
+        paragraph.classList.add(detail.className);
+      }
       productDetailsContainer.appendChild(paragraph);
     });
 
@@ -1017,6 +1021,10 @@
     let cost = gen("p");
     cost.textContent = "$" + productDetails.cost;
 
+    let stock = gen("p");
+    stock.classList.add("stock");
+    stock.textContent = `${productDetails.stock} left`;
+
     let buttonsStockContainer = createButtonsStockContainer(productId, productDetails.quantity);
 
     productDetailsContainer.appendChild(brand);
@@ -1024,6 +1032,7 @@
     productDetailsContainer.appendChild(size);
     productDetailsContainer.appendChild(color);
     productDetailsContainer.appendChild(cost);
+    productDetailsContainer.appendChild(stock);
     productDetailsContainer.appendChild(buttonsStockContainer);
 
     return productDetailsContainer;

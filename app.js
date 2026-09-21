@@ -638,8 +638,9 @@ app.get("/carts", async (req, res) => {
         .send("Session ID is is invalid");
     } else {
       let userId = results[0]["user_id"];
-      query = `SELECT p.product_id, p.name, p.brand, p.color, p.size, p.cost, c.quantity FROM cart c
+      query = `SELECT p.product_id, p.name, p.brand, p.color, p.size, p.cost, c.quantity, i.stock FROM cart c
       JOIN products p ON p.product_id = c.product_id
+      JOIN inventory i ON i.product_id = c.product_id
       WHERE c.user_id = ?`;
       results = await db.all(query, userId);
       res.json(results);
