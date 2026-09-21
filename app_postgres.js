@@ -3,8 +3,15 @@
 const express = require("express");
 const app = express();
 
-const sqlite = require("sqlite");
-const sqlite3 = require("sqlite3");
+const { Pool } = require("pg");
+
+const pool = new Pool ({
+  user: "testuser",
+  host: "localhost",
+  database: "cmbeautydb",
+  password: "password",
+  port: 5432,
+})
 
 const multer = require("multer");
 
@@ -23,28 +30,24 @@ app.use(multer().none());
  */
 app.get("/products", async (req, res) => {
   let category = req.query.category;
-  let db;
 
   try {
-    db = await getDBConnection();
 
     let results;
 
     if (category) {
-      results = await db.all(
-        "SELECT * FROM products WHERE category = ?",
-        category
+      results = await pool.query(
+        "SELECT * FROM products WHERE category = $1",
+        [category]
       );
     } else {
-      results = await db.all("SELECT * FROM products");
+      results = await pool.query("SELECT * FROM products");
     }
 
-    res.json({ products: results });
+    res.json({ products: results.rows });
 
   } catch (err) {
     res.status(500).send("Something is wrong with server");
-  } finally {
-    if (db) await db.close();
   }
 });
 
@@ -63,14 +66,13 @@ app.get("/search", async (req, res) => {
       .send("Search query or type is missing.");
   }
 
-  let db;
   try {
-    db = await getDBConnection();
     query = query.trim();
-    let results = await searchProducts(db, query, type);
+
+    const results = await searchProducts(query, type);
 
     if (results.length > 0) {
-      res.json({"products": results});
+      res.json({ products: results });
     } else {
       res.status(USER_PARAMETER_ERROR).type("text")
         .send("No matching products found.");
@@ -78,8 +80,6 @@ app.get("/search", async (req, res) => {
   } catch (err) {
     res.status(SERVER_ERROR).type("text")
       .send("Something is wrong with server. Please try again.");
-  } finally {
-    if (db) await db.close();
   }
 });
 
@@ -87,30 +87,26 @@ app.get("/search", async (req, res) => {
  * Return all information of product that matches the product_id.
  */
 app.get("/products/:id", async (req, res) => {
-  let productId = req.params.id;
-  let db;
-  try {
-    db = await getDBConnection();
+  const productId = req.params.id;
 
-    // get all information of product that matches product_id
-    let query = `
+  try {
+    const query = `
       SELECT * FROM products p
       JOIN inventory i ON i.product_id = p.product_id
-      WHERE p.product_id = ?`;
-    let results = await db.all(query, productId);
-    if (results.length > 0) {
-      res.json(results[0]);
+      WHERE p.product_id = $1
+    `;
+
+    const result = await pool.query(query, [productId]);
+
+    if (result.rows.length > 0) {
+      res.json(result.rows[0]);
     } else {
-      res.status(USER_PARAMETER_ERROR).type('text')
+      res.status(USER_PARAMETER_ERROR).type("text")
         .send("Invalid Product ID");
     }
   } catch (err) {
     res.status(SERVER_ERROR).type("text")
       .send("Something is wrong with server. Please try again");
-  } finally {
-    if (db) {
-      await db.close();
-    }
   }
 });
 
@@ -123,42 +119,42 @@ app.post("/accounts", async (req, res) => {
     cardNumber, fund, shippingAddress, imgpath
   } = req.body;
 
-  if (!username || !email || !password || !phone || !cardNumber || !fund || !shippingAddress) {
-    console.log("missing?")
+  if (!username || !email || !password || !phone ||
+      !cardNumber || !fund || !shippingAddress) {
     return res.status(400).send("missing fields");
   }
 
-  let db;
-
   try {
-    db = await getDBConnection();
+    const duplicateField = await findDuplicateUserField(username);
 
-    const duplicateField = await findDuplicateUserField(db, username);
     if (duplicateField) {
       return res.status(400).send(`duplicate ${duplicateField}`);
     }
 
-    let query = `
-      INSERT INTO user
+    const query = `
+      INSERT INTO users
       (username, email, password, phone, card_number, fund, shipping_address, imgpath)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
     `;
 
-    // hash password before storing
-    let hashedPassword = await hashPassword(password);
+    const hashedPassword = await hashPassword(password);
 
-    await db.run(query, [
-      username, email, hashedPassword, phone,
-      cardNumber, fund, shippingAddress, imgpath || null
+    await pool.query(query, [
+      username,
+      email,
+      hashedPassword,
+      phone,
+      cardNumber,
+      fund,
+      shippingAddress,
+      imgpath || null
     ]);
 
     res.send("successful");
 
   } catch (err) {
+    console.error(err);
     res.status(500).send("server error");
-
-  } finally {
-    if (db) await db.close();
   }
 });
 
@@ -174,11 +170,9 @@ app.post("/signin", async (req, res) => {
       .send("Username or password is missing");
   }
 
-  let db;
   try {
-    db = await getDBConnection();
+    const user = await validateUser(username, password);
 
-    const user = await validateUser(db, username, password);
     if (!user) {
       return res.status(USER_PARAMETER_ERROR).type("text")
         .send("Username or password is wrong");
@@ -187,62 +181,70 @@ app.post("/signin", async (req, res) => {
     const sessionId = generateSessionId();
     const userId = user.user_id;
 
-    await db.run(
-      "INSERT INTO session (session_id, user_id) VALUES (?, ?)",
+    await pool.query(
+      "INSERT INTO sessions (session_id, user_id) VALUES ($1, $2)",
       [sessionId, userId]
     );
 
     res.type("text").send(String(sessionId));
+
   } catch (err) {
+    console.error(err);
     res.status(SERVER_ERROR).type("text")
       .send("Something is wrong with the server. Please try again");
-  } finally {
-    if (db) await db.close();
   }
 });
 
 /**
- * Returns the reveiew information of the given product's id.
+ * Returns the review information of the given product's id.
  */
 app.get("/reviews", async (req, res) => {
-  let productId = req.query.id;
-  if (!productId) {
-    res.status(USER_PARAMETER_ERROR).type("text")
-      .send("Product ID is missing.");
-    return
-  }
-  let db;
-  try {
-    db = await getDBConnection();
+  const productId = req.query.id;
 
-    let results = await db.all(`SELECT u.username, u.imgpath, r.rating, r.comment FROM review r
-      JOIN user u ON r.user_id = u.user_id WHERE product_id = ?`, productId);
+  if (!productId) {
+    return res.status(USER_PARAMETER_ERROR).type("text")
+      .send("Product ID is missing.");
+  }
+
+  try {
+    const result = await pool.query(
+      `SELECT u.username, u.imgpath, r.rating, r.comment
+       FROM reviews r
+       JOIN users u ON r.user_id = u.user_id
+       WHERE r.product_id = $1`,
+      [productId]
+    );
+
+    const reviews = result.rows;
+
     let allratings = 0.0;
-    for (let i = 0; i < results.length; i++) {
-      allratings += parseInt(results[i].rating);
+
+    for (let i = 0; i < reviews.length; i++) {
+      allratings += parseInt(reviews[i].rating);
     }
+
     let avgRating = 0.0;
-    if (results.length > 0) {
-      avgRating = allratings / results.length;
+
+    if (reviews.length > 0) {
+      avgRating = allratings / reviews.length;
     }
-    let returnResults = {
-      "avgRating": avgRating,
-      "reviews": results
+
+    const returnResults = {
+      avgRating: avgRating,
+      reviews: reviews
     };
 
     res.json(returnResults);
+
   } catch (err) {
+    console.error(err);
     res.status(SERVER_ERROR).type("text")
       .send("Something is wrong with server. Please try again");
-  } finally {
-    if (db) {
-      await db.close();
-    }
   }
 });
 
 /**
- * Submit the review of specific product and  update the database if sessionID is valid.
+ * Returns a json file of information of user if the session ID is valid.
  */
 app.post("/reviews", async (req, res) => {
   const {rating, comment, productId} = req.body;
@@ -257,42 +259,35 @@ app.post("/reviews", async (req, res) => {
 
   // if the comment is "" it accepts it.
   if (!productId || !rating || (comment !== "" && !comment)) {
-    res.status(USER_PARAMETER_ERROR).type("text")
+    return res.status(USER_PARAMETER_ERROR).type("text")
       .send("Product ID or rating or comment is missing");
-  } else {
-    let db;
-    try {
-      db = await getDBConnection();
+  }
 
-      // check valid sessionID
-      const userId = await getUserIdFromSession(db, sessionId);
+  try {
+    // check valid sessionID
+    const userId = await getUserIdFromSession(sessionId);
 
-      if (!userId) {
-        await db.close();
-        return res.status(401).type("text")
-          .send("Session ID is invalid.");
-      }
-
-      await db.run(
-        "INSERT INTO review (user_id, product_id, rating, comment) VALUES (?, ?, ?, ?)"
-        , [userId, productId, rating, comment]
-      );
-      res.type("text")
-        .send("successfully submit review");
-    } catch (err) {
-      res.status(SERVER_ERROR).type('text')
-        .send('Something is wrong with server');
-    } finally {
-      if (db) {
-        db.close();
-      }
+    if (!userId) {
+      return res.status(401).type("text")
+        .send("Session ID is invalid.");
     }
+
+    await pool.query(
+      `INSERT INTO reviews (user_id, product_id, rating, comment)
+       VALUES ($1, $2, $3, $4)`,
+      [userId, productId, rating, comment]
+    );
+
+    res.type("text")
+      .send("successfully submit review");
+
+  } catch (err) {
+    console.error(err);
+    res.status(SERVER_ERROR).type("text")
+      .send("Something is wrong with server");
   }
 });
 
-/**
- * Returns a json file of information of user if the session ID is valid.
- */
 app.get("/users/me", async (req, res) => {
   const authHeader = req.headers.authorization;
 
@@ -301,10 +296,8 @@ app.get("/users/me", async (req, res) => {
   }
 
   const sessionId = authHeader.replace("Bearer ", "");
-  let db;
   try {
-    db = await getDBConnection();
-    let userInfo = await getUserAllInfo(db, sessionId);
+    let userInfo = await getUserAllInfo(sessionId);
 
     if (userInfo.length === 0) {
       return handleInvalidSession(res);
@@ -313,12 +306,9 @@ app.get("/users/me", async (req, res) => {
   } catch (err) {
     res.status(SERVER_ERROR).type("text")
       .send("Something is wrong with server. Please try again.");
-  } finally {
-    if (db) {
-      db.close();
-    }
   }
 });
+
 
 /**
  * Get signed in user's histroy of shopping.
@@ -331,72 +321,78 @@ app.get("/histories", async (req, res) => {
   }
 
   const sessionId = authHeader.replace("Bearer ", "");
-  let db;
-  try {
-    db = await getDBConnection();
 
+  try {
     // Get the userId from session
-    const userId = await getUserIdFromSession(db, sessionId);
+    const userId = await getUserIdFromSession(sessionId);
+
     if (!userId) {
       return res.status(401).type("text")
         .send("Session ID is invalid.");
     }
 
     // Get purchase history
-    let results = await getPurchaseHistory(db, userId);
-    let returnResult = {history: []};
+    const results = await getPurchaseHistory(userId);
+    const returnResult = {history: []};
 
     // For each purchase, fetch product details
     for (let i = 0; i < results.length; i++) {
-      let confirmationId = results[i]["confirmation_id"];
-      let productIds = results[i]["product_ids"].split(",");
-      let products = [];
+      const confirmationId = results[i]["confirmation_id"];
+      const productIds = results[i]["product_ids"].split(",");
+      const products = [];
+
       for (let j = 0; j < productIds.length; j++) {
-        let productId = parseInt(productIds[j]);
-        let productDetails = await getProductDetails(db, confirmationId, productId);
+        const productId = parseInt(productIds[j]);
+
+        const productDetails = await getProductDetails(
+          confirmationId,
+          productId
+        );
+
         products.push(productDetails);
       }
-      returnResult.history.push({confirmationId: confirmationId, products: products});
+
+      returnResult.history.push({
+        confirmationId: confirmationId,
+        products: products
+      });
     }
+
     res.json(returnResult);
+
   } catch (err) {
+    console.error(err);
     res.status(SERVER_ERROR).type("text")
       .send("Something is wrong with server");
-  } finally {
-    if (db) {
-      db.close();
-    }
   }
 });
 
 /**
  * Fetches the purchase history for a given user.
- * @param {Object} db - The database connection object.
  * @param {number} userId - The ID of the user for whom to retrieve purchase history.
  * @returns {Array} - An array of purchase history records, each containing a confirmation
  *                    ID and a list of product IDs.
  */
-async function getPurchaseHistory(db, userId) {
-  let query = `SELECT confirmation_id, GROUP_CONCAT(product_id) AS product_ids FROM purchase
-    WHERE user_id = ? GROUP BY confirmation_id ORDER BY history_id`;
-  let results = await db.all(query, userId);
-  return results;
+async function getPurchaseHistory(userId) {
+  let query = `SELECT confirmation_id, STRING_AGG(product_id::text, ',') AS product_ids FROM purchases
+    WHERE user_id = $1 GROUP BY confirmation_id ORDER BY MIN(history_id)`;
+  let results = await pool.query(query, [userId]);
+  return results.rows;
 }
 
 /**
  * Fetches the details of a specific product from a purchase based on confirmation ID
  * and product ID.
- * @param {Object} db - The database connection object.
  * @param {number} confirmationId - The confirmation ID of the purchase.
  * @param {number} productId - The product ID of the specific product.
  * @returns {Object|null} - The details of the product, or null if not found.
  */
-async function getProductDetails(db, confirmationId, productId) {
+async function getProductDetails(confirmationId, productId) {
   let query = `SELECT p.name, p.brand, p.color, p.cost, pur.quantity FROM products p
-    JOIN purchase pur ON pur.product_id = p.product_id
-    WHERE pur.confirmation_id = ? AND p.product_id = ?`;
-  let productDetails = await db.all(query, [confirmationId, productId]);
-  return productDetails[0];
+    JOIN purchases pur ON pur.product_id = p.product_id
+    WHERE pur.confirmation_id = $1 AND p.product_id = $2`;
+  let productDetails = await pool.query(query, [confirmationId, productId]);
+  return productDetails.rows[0];
 }
 
 /**
@@ -410,27 +406,31 @@ app.post("/signout", async (req, res) => {
   }
 
   const sessionId = authHeader.replace("Bearer ", "");
-  let db;
+
   try {
-    db = await getDBConnection();
-    let results = await db.all("SELECT * FROM session WHERE session_id = ?", sessionId);
+    const result = await pool.query(
+      "SELECT * FROM sessions WHERE session_id = $1",
+      [sessionId]
+    );
 
     // session ID is not valid
-    if (results.length === 0) {
-      res.status(USER_PARAMETER_ERROR).type("text")
+    if (result.rows.length === 0) {
+      return res.status(USER_PARAMETER_ERROR).type("text")
         .send("Session ID is invalid. Please close the browser and try again.");
-    } else {
-
-      // delete sessionID from session table
-      let query = "DELETE FROM session WHERE session_id = ?";
-      await db.all(query, sessionId);
-      res.type("text").send("succcessfully sign out");
     }
+
+    // delete session ID
+    await pool.query(
+      "DELETE FROM sessions WHERE session_id = $1",
+      [sessionId]
+    );
+
+    res.type("text").send("successfully sign out");
+
   } catch (err) {
+    console.error(err);
     res.status(SERVER_ERROR).type("text")
       .send("Something is wrong with server");
-  } finally {
-    if (db) await db.close();
   }
 });
 
@@ -446,42 +446,66 @@ app.patch("/users", async (req, res) => {
 
   const sessionId = authHeader.replace("Bearer ", "");
   const {column, input} = req.body;
-  const allowedColumns = ['username', 'email', 'password', 'shipping_address', 'phone', 'imgpath'];
+
+  const allowedColumns = [
+    "username",
+    "email",
+    "password",
+    "shipping_address",
+    "phone",
+    "imgpath"
+  ];
+
   if (!column || !input || !allowedColumns.includes(column)) {
     return res.status(USER_PARAMETER_ERROR).type("text")
       .send("Invalid column or input");
   }
 
-  let db;
   try {
-    db = await getDBConnection();
-    let userId = await getUserIdFromSession(db, sessionId);
+    const userId = await getUserIdFromSession(sessionId);
 
     if (!userId) {
       return handleInvalidSession(res);
     }
 
-    let returnResults = {"success": null, "fail": null};
+    let returnResults = {
+      success: null,
+      fail: null
+    };
 
-    // user name and email and phone should check if there is same input in database
-    if (column === "username" || column === "email" || column === "phone") {
+    // username, email, phone must be unique
+    if (
+      column === "username" ||
+      column === "email" ||
+      column === "phone"
+    ) {
+      returnResults = await checkAndUpdateUserInfo(
+        column,
+        input,
+        userId
+      );
 
-      returnResults = await checkAndUpdateUserInfo(db, column, input, userId);
-
-    // for other column, update without checking duplication
     } else {
-      // hash the password before storing, store other columns as-is
-      let value = column === "password" ? await hashPassword(input) : input;
-      await db.run("UPDATE user SET " + column + " = ? WHERE user_id = ?", [value, userId]);
-      returnResults.success = ("Successfully update " + column + " information!");
+      const value =
+        column === "password"
+          ? await hashPassword(input)
+          : input;
+
+      await pool.query(
+        `UPDATE users SET ${column} = $1 WHERE user_id = $2`,
+        [value, userId]
+      );
+
+      returnResults.success =
+        `Successfully update ${column} information!`;
     }
 
     res.json(returnResults);
+
   } catch (err) {
+    console.error(err);
     res.status(SERVER_ERROR).type("text")
       .send("Something is wrong with server");
-  } finally {
-    if (db) await db.close();
   }
 });
 
@@ -496,35 +520,33 @@ app.post("/carts", async (req, res) => {
   }
 
   const sessionId = authHeader.replace("Bearer ", "");
-  let db;
+
   try {
-    let productId = req.body.productId;
+    const productId = req.body.productId;
 
     if (!productId) {
       return handleMissingProductId(res);
     }
 
-    db = await getDBConnection();
-    let userId = await getUserIdFromSession(db, sessionId);
+    const userId = await getUserIdFromSession(sessionId);
 
     if (!userId) {
       return handleInvalidSession(res);
     }
 
-    let isProductInCart = await checkIfProductInCart(db, productId, userId);
+    const isProductInCart = await checkIfProductInCart(productId, userId);
 
     if (isProductInCart) {
       return res.type("text").send("FALSE");
     }
 
-    await addProductToCart(db, productId, userId);
+    await addProductToCart(productId, userId);
     res.type("text").send("TRUE");
 
   } catch (err) {
+    console.error(err);
     res.status(SERVER_ERROR).type("text")
       .send("Something is wrong with server");
-  } finally {
-    if (db) await db.close();
   }
 });
 
@@ -539,35 +561,32 @@ app.delete("/carts/:productId", async (req, res) => {
   }
 
   const sessionId = authHeader.replace("Bearer ", "");
-  let db;
+  const productId = req.params.productId;
+
+  if (!productId) {
+    return res.status(USER_PARAMETER_ERROR).type("text")
+      .send("productId is missing");
+  }
+
   try {
-    let productId = req.params.productId;
+    const userId = await getUserIdFromSession(sessionId);
 
-    if (!productId) {
-      res.status(USER_PARAMETER_ERROR).type("text")
-        .send("productId is missing");
-    } else {
-      db = await getDBConnection();
-
-      let query = "SELECT * FROM session WHERE session_id = ?";
-      let results = await db.all(query, sessionId);
-
-      if (results.length === 0) {
-        res.status(USER_PARAMETER_ERROR).type("text")
-          .send("Session ID is is invalid");
-      } else {
-        let userId = results[0]["user_id"];
-        query = "DELETE FROM cart WHERE product_id = ? AND user_id = ?";
-        await db.run(query, [productId, userId]);
-
-        res.type("text").send("Successfully remove from cart");
-      }
+    if (!userId) {
+      return res.status(USER_PARAMETER_ERROR).type("text")
+        .send("Session ID is is invalid");
     }
+
+    await pool.query(
+      "DELETE FROM cart WHERE product_id = $1 AND user_id = $2",
+      [productId, userId]
+    );
+
+    res.type("text").send("Successfully remove from cart");
+
   } catch (err) {
+    console.error(err);
     res.status(SERVER_ERROR).type("text")
       .send("Something is wrong with server");
-  } finally {
-    if (db) await db.close();
   }
 });
 
@@ -582,36 +601,33 @@ app.patch("/carts/:productId", async (req, res) => {
   }
 
   const sessionId = authHeader.replace("Bearer ", "");
-  let db;
+  const quantity = req.body.quantity;
+  const productId = req.params.productId;
+
+  if (!productId || !quantity) {
+    return res.status(USER_PARAMETER_ERROR).type("text")
+      .send("productId or quantity is missing");
+  }
+
   try {
-    let quantity = req.body.quantity;
-    let productId = req.params.productId;
+    const userId = await getUserIdFromSession(sessionId);
 
-    if (!productId || !quantity) {
-      res.status(USER_PARAMETER_ERROR).type("text")
-        .send("productId or quantity is missing");
-    } else {
-      db = await getDBConnection();
-
-      let query = "SELECT * FROM session WHERE session_id = ?";
-      let results = await db.all(query, sessionId);
-
-      if (results.length === 0) {
-        res.status(USER_PARAMETER_ERROR).type("text")
-          .send("Session ID is is invalid");
-      } else {
-        let userId = results[0]["user_id"];
-        query = "UPDATE cart SET quantity = ? WHERE product_id = ? AND user_id = ?";
-        await db.run(query, [quantity, productId, userId]);
-
-        res.type("text").send("Successfully update quantity");
-      }
+    if (!userId) {
+      return res.status(USER_PARAMETER_ERROR).type("text")
+        .send("Session ID is is invalid");
     }
+
+    await pool.query(
+      "UPDATE cart SET quantity = $1 WHERE product_id = $2 AND user_id = $3",
+      [quantity, productId, userId]
+    );
+
+    res.type("text").send("Successfully update quantity");
+
   } catch (err) {
+    console.error(err);
     res.status(SERVER_ERROR).type("text")
       .send("Something is wrong with server");
-  } finally {
-    if (db) await db.close();
   }
 });
 
@@ -626,29 +642,28 @@ app.get("/carts", async (req, res) => {
   }
 
   const sessionId = authHeader.replace("Bearer ", "");
-  let db;
+
   try {
-    db = await getDBConnection();
+    const userId = await getUserIdFromSession(sessionId);
 
-    let query = "SELECT * FROM session WHERE session_id = ?";
-    let results = await db.all(query, sessionId);
-
-    if (results.length === 0) {
-      res.status(USER_PARAMETER_ERROR).type("text")
+    if (!userId) {
+      return res.status(USER_PARAMETER_ERROR).type("text")
         .send("Session ID is is invalid");
-    } else {
-      let userId = results[0]["user_id"];
-      query = `SELECT p.product_id, p.name, p.brand, p.color, p.size, p.cost, c.quantity FROM cart c
-      JOIN products p ON p.product_id = c.product_id
-      WHERE c.user_id = ?`;
-      results = await db.all(query, userId);
-      res.json(results);
     }
+
+    const result = await pool.query(
+      `SELECT p.product_id, p.name, p.brand, p.color, p.size, p.cost, c.quantity FROM cart c
+      JOIN products p ON p.product_id = c.product_id
+      WHERE c.user_id = $1`,
+      [userId]
+    );
+
+    res.json(result.rows);
+
   } catch (err) {
+    console.error(err);
     res.status(SERVER_ERROR).type("text")
       .send("Something is wrong with server");
-  } finally {
-    if (db) await db.close();
   }
 });
 
@@ -663,37 +678,35 @@ app.post("/purchases", async (req, res) => {
   }
 
   const sessionId = authHeader.replace("Bearer ", "");
-  let db;
+
   try {
-    db = await getDBConnection();
-    let userInfo = await getUserInfo(db, sessionId);
+    const userInfo = await getUserInfo(sessionId);
 
     if (userInfo.length === 0) {
       return res.status(USER_PARAMETER_ERROR).type("text")
         .send("Session ID is invalid");
     }
 
-    let userId = userInfo[0].user_id;
-    let cartItems = await getCartInfo(db, userId);
+    const userId = userInfo[0].user_id;
+    const cartItems = await getCartInfo(userId);
+
     if (cartItems.length === 0) {
       return res.status(USER_PARAMETER_ERROR).type("text")
         .send("Cart is empty");
     }
 
-    let transaction = await processPurchase(db, userId, cartItems);
+    const transaction = await processPurchase(userId, cartItems);
     res.json(transaction);
 
   } catch (err) {
+    console.error(err);
     res.status(SERVER_ERROR).type("text")
       .send("Something is wrong with server. Please try again.");
-  } finally {
-    if (db) await db.close();
   }
 });
 
 /**
  * Handles an invalid session by sending an error response to the client.
- * The caller is responsible for closing the database connection (e.g. in a finally block).
  *
  * @param {Object} res - The response object to send an error response to the client.
  * @returns {void}
@@ -712,13 +725,12 @@ function handleInvalidSession(res) {
  * accordingly.
  * If any check fails, the transaction is halted, and appropriate failure information is returned.
  *
- * @param {Object} db - The database connection object.
  * @param {string} userId - The unique identifier of the user making the purchase.
  * @param {Array} cartItems - An array of objects representing the items in the user's cart.
  * @returns {Object} - A transaction object that contains information about the successful or
  *                     failed purchase.
  */
-async function processPurchase(db, userId, cartItems) {
+async function processPurchase(userId, cartItems) {
   let transaction = {
     "fail":
       {
@@ -738,26 +750,31 @@ async function processPurchase(db, userId, cartItems) {
     return transaction;
   }
 
-  let userFund = await checkUserFunds(db, cartItems, userId);
+  let userFund = await checkUserFunds(cartItems, userId);
   if (userFund < 0) {
     transaction.fail.shortmoney = -1 * userFund;
     return transaction;
   }
 
+  const client = await pool.connect();
+
   try {
-    await db.exec("BEGIN TRANSACTION");
+    await client.query("BEGIN");
+
     let {confirmationId, successfulProducts} =
-    await handleSuccessfulPurchase(db, cartItems, userFund, userId);
-    await deleteCartInfo(db, userId);
-    await db.exec("COMMIT")
+    await handleSuccessfulPurchase(client, cartItems, userFund, userId);
+    await deleteCartInfo(client, userId);
+    await client.query("COMMIT");
 
     transaction.successful.confirmation.push(confirmationId);
     transaction.successful.products = successfulProducts;
 
     return transaction;
-  } catch(err) {
-    await db.exec("ROLLBACK");
+  } catch (err) {
+    await client.query("ROLLBACK");
     throw err;
+  } finally {
+    client.release();
   }
 }
 
@@ -783,36 +800,34 @@ async function checkPassword(password, hashedPassword) {
  * This function queries the database to fetch the username and user_id from the 'user' table
  * by joining it with the 'session' table. The session ID is used to identify the active session
  * and match it with the corresponding user.
- * @param {Object} db - The database connection object.
  * @param {string} sessionId - The unique identifier for the session.
  * @returns {Promise<Object[]>} - A promise that resolves to an array of user information objects,
  *                                 where each object contains the 'username' and 'user_id' of
  *                                 the user
  *                                 associated with the provided session ID.
  */
-async function getUserInfo(db, sessionId) {
-  let query = `SELECT u.username, u.user_id FROM session s
-    JOIN user u ON u.user_id = s.user_id
-    WHERE s.session_id = ?`;
-  let results = await db.all(query, sessionId);
-  return results;
+async function getUserInfo(sessionId) {
+  const query = `SELECT u.username, u.user_id FROM sessions s
+    JOIN users u ON u.user_id = s.user_id
+    WHERE s.session_id = $1`;
+  const results = await pool.query(query, [sessionId]);
+  return results.rows;
 }
 
 /**
  * Fetches all user information based on the session ID.
- * @param {Object} db - The database connection object.
  * @param {string} sessionId - The session ID to retrieve the associated user's information.
  * @returns {Object|null} - Returns the user information if found, otherwise null.
  */
-async function getUserAllInfo(db, sessionId) {
+async function getUserAllInfo(sessionId) {
   const query = `
     SELECT u.username, u.email, u.phone, u.fund, u.shipping_address, u.imgpath
-    FROM session s
-    JOIN user u ON u.user_id = s.user_id
-    WHERE s.session_id = ?`;
+    FROM sessions s
+    JOIN users u ON u.user_id = s.user_id
+    WHERE s.session_id = $1`;
 
-  const results = await db.all(query, sessionId);
-  return results.length > 0 ? results[0] : null;
+  const results = await pool.query(query, [sessionId]);
+  return results.rows.length > 0 ? results.rows[0] : null;
 }
 
 /**
@@ -833,15 +848,14 @@ function handleMissingProductId(res) {
  * and if it does, returns the user ID linked to that session. If no session is found,
  * it returns null.
  *
- * @param {Object} db - The database connection object.
  * @param {string} sessionId - The unique identifier for the session.
  * @returns {Promise} - A promise that resolves to the user ID if the session is found,
  *                      or null if not.
  */
-async function getUserIdFromSession(db, sessionId) {
-  let query = "SELECT * FROM session WHERE session_id = ?";
-  let results = await db.all(query, sessionId);
-  return results.length === 0 ? null : results[0]["user_id"];
+async function getUserIdFromSession(sessionId) {
+  const query = "SELECT * FROM sessions WHERE session_id = $1";
+  const results = await pool.query(query, [sessionId]);
+  return results.rows.length === 0 ? null : results.rows[0]["user_id"];
 }
 
 /**
@@ -849,16 +863,15 @@ async function getUserIdFromSession(db, sessionId) {
  * This function queries the cart table to check whether a given product ID
  * already exists in the user's cart.
  *
- * @param {Object} db - The database connection object.
  * @param {number} productId - The ID of the product to check.
  * @param {number} userId - The ID of the user to check for the product in their cart.
  * @returns {Promise<boolean>} - Returns a promise that resolves to true if the product
  *                               is in the cart, false otherwise.
  */
-async function checkIfProductInCart(db, productId, userId) {
-  let query = "SELECT * FROM cart WHERE product_id = ? AND user_id = ?";
-  let results = await db.all(query, [productId, userId]);
-  return results.length > 0;
+async function checkIfProductInCart(productId, userId) {
+  const query = "SELECT * FROM cart WHERE product_id = $1 AND user_id = $2";
+  const results = await pool.query(query, [productId, userId]);
+  return results.rows.length > 0;
 }
 
 /**
@@ -866,14 +879,13 @@ async function checkIfProductInCart(db, productId, userId) {
  * This function inserts a new entry into the cart table for the given product ID
  * and user ID with an initial quantity of 1.
  *
- * @param {Object} db - The database connection object.
  * @param {number} productId - The ID of the product to add to the cart.
  * @param {number} userId - The ID of the user adding the product to their cart.
  * @returns {Promise<void>} - A promise that resolves when the product is added to the cart.
  */
-async function addProductToCart(db, productId, userId) {
-  let query = "INSERT INTO cart (product_id, user_id, quantity) VALUES (?, ?, 1)";
-  await db.run(query, [productId, userId]);
+async function addProductToCart(productId, userId) {
+  const query = "INSERT INTO cart (product_id, user_id, quantity) VALUES ($1, $2, 1)";
+  await pool.query(query, [productId, userId]);
 }
 
 /**
@@ -882,20 +894,19 @@ async function addProductToCart(db, productId, userId) {
  * from the 'cart', 'inventory', and 'products' tables. It joins these tables to provide relevant
  * details, including stock information for each product in the user's cart.
  *
- * @param {Object} db - The database connection object.
  * @param {string} userId - The unique identifier for the user whose cart information is being
  *                          retrieved.
  * @returns {Promise<Object[]>} - A promise that resolves to an array of cart items, where each item
  *                                 includes the product's name, user_id, quantity, stock,
  *                                 and product_id.
  */
-async function getCartInfo(db, userId) {
-  let query = `SELECT p.name, c.user_id, c.quantity, i.stock, p.product_id FROM cart c
+async function getCartInfo(userId) {
+  const query = `SELECT p.name, c.user_id, c.quantity, i.stock, p.product_id FROM cart c
     JOIN inventory i ON i.product_id = c.product_id
     JOIN products p ON i.product_id = p.product_id
-    WHERE c.user_id = ?`;
-  let resutls = await db.all(query, userId);
-  return resutls;
+    WHERE c.user_id = $1`;
+  const results = await pool.query(query, [userId]);
+  return results.rows;
 }
 
 /**
@@ -927,25 +938,24 @@ function checkProductStock(cartItems) {
  * to calculate the total cost of the items. It subtracts the cost of each item from the user's
  * available funds.
  *
- * @param {Object} db - The database connection object.
  * @param {Array} cartItems - An array of cart items, where each item contains a 'product_id',
  *                            'quantity', and 'cost'.
  * @param {string} userId - The unique identifier of the user whose funds are being checked.
  * @returns {Promise<number>} - A promise that resolves to the user's remaining funds after
  *                              accounting for the cart items' cost.
  */
-async function checkUserFunds(db, cartItems, userId) {
-  let userFundQuery = "SELECT fund FROM user WHERE user_id = ?";
-  let userFundInfo = await db.all(userFundQuery, userId);
-  let userFund = parseInt(userFundInfo[0].fund);
+async function checkUserFunds(cartItems, userId) {
+  const userFundQuery = "SELECT fund FROM users WHERE user_id = $1";
+  const userFundInfo = await pool.query(userFundQuery, [userId]);
+  let userFund = parseInt(userFundInfo.rows[0].fund);
 
   for (let item of cartItems) {
-    let query = `SELECT u.fund, c.quantity, p.cost FROM user u
+    const query = `SELECT u.fund, c.quantity, p.cost FROM users u
       JOIN cart c ON u.user_id = c.user_id
       JOIN products p ON c.product_id = p.product_id
-      WHERE c.product_id = ? AND c.user_id = ?`;
-    let purchaseInfo = await db.all(query, [item.product_id, userId]);
-    userFund -= (purchaseInfo[0].quantity * purchaseInfo[0].cost);
+      WHERE c.product_id = $1 AND c.user_id = $2`;
+    const purchaseInfo = await pool.query(query, [item.product_id, userId]);
+    userFund -= (purchaseInfo.rows[0].quantity * purchaseInfo.rows[0].cost);
   }
 
   return userFund;
@@ -957,7 +967,7 @@ async function checkUserFunds(db, cartItems, userId) {
  * and records the purchase in the database. It also returns the details of the successful products
  * along with a confirmation ID for the transaction.
  *
- * @param {Object} db - The database connection object.
+ * @param {Object} client - PostgreSQL client used for the transaction.
  * @param {Array} cartItems - An array of cart items, where each item contains 'product_id' and
  *                            'quantity'.
  * @param {number} userFund - The remaining funds of the user after checking their balance.
@@ -966,31 +976,31 @@ async function checkUserFunds(db, cartItems, userId) {
  *                              and an array of successful product details (name, brand, color,
  *                              cost, quantity).
  */
-async function handleSuccessfulPurchase(db, cartItems, userFund, userId) {
+async function handleSuccessfulPurchase(client, cartItems, userFund, userId) {
   let confirmationId = generateConfirmationNumber();
   let successfulProducts = [];
 
   for (let item of cartItems) {
-    let updateStockQuery = `UPDATE inventory SET stock = stock - ? WHERE product_id = ? AND stock >= ?`;
-    const result = await db.run(updateStockQuery, [item.quantity, item.product_id, item.quantity]);
+    const updateStockQuery = `UPDATE inventory SET stock = stock - $1 WHERE product_id = $2 AND stock >= $3`;
+    const result = await client.query(updateStockQuery, [item.quantity, item.product_id, item.quantity]);
 
     // prevent race condition
-    if (result.changes === 0) {
+    if (result.rowCount === 0) {
       throw new Error("Insufficient stock");
     }
 
-    let updateUserFundQuery = `UPDATE user SET fund = ? WHERE user_id = ?`;
-    await db.run(updateUserFundQuery, [userFund, userId]);
+    const updateUserFundQuery = `UPDATE users SET fund = $1 WHERE user_id = $2`;
+    await client.query(updateUserFundQuery, [userFund, userId]);
 
-    let insertPurchaseQuery = `INSERT INTO purchase (confirmation_id, user_id, product_id, quantity)
-      VALUES (?, ?, ?, ?)`;
-    await db.run(insertPurchaseQuery, [confirmationId, userId, item.product_id, item.quantity]);
+    const insertPurchaseQuery = `INSERT INTO purchases (confirmation_id, user_id, product_id, quantity)
+      VALUES ($1, $2, $3, $4)`;
+    await client.query(insertPurchaseQuery, [confirmationId, userId, item.product_id, item.quantity]);
 
-    let productDetailsQuery = `SELECT p.name, p.brand, p.color, p.cost, pur.quantity
-      FROM products p JOIN purchase pur ON pur.product_id = p.product_id
-      WHERE pur.confirmation_id = ? AND p.product_id = ?`;
-    let productDetails = await db.all(productDetailsQuery, confirmationId, item.product_id);
-    successfulProducts.push(productDetails[0]);
+    const productDetailsQuery = `SELECT p.name, p.brand, p.color, p.cost, pur.quantity
+      FROM products p JOIN purchases pur ON pur.product_id = p.product_id
+      WHERE pur.confirmation_id = $1 AND p.product_id = $2`;
+    const productDetails = await client.query(productDetailsQuery, [confirmationId, item.product_id]);
+    successfulProducts.push(productDetails.rows[0]);
   }
   return {confirmationId, successfulProducts};
 }
@@ -999,13 +1009,13 @@ async function handleSuccessfulPurchase(db, cartItems, userFund, userId) {
  * Deletes all items in the user's cart.
  * This function removes all entries in the 'cart' table associated with the specified user ID.
  *
- * @param {Object} db - The database connection object.
+ * @param {Object} client - PostgreSQL client used for the transaction.
  * @param {string} userId - The unique identifier for the user whose cart is being cleared.
  * @returns {Promise} - A promise that resolves when the operation is complete.
  */
-async function deleteCartInfo(db, userId) {
-  let query = "DELETE FROM cart WHERE user_id = ?";
-  let results = await db.run(query, userId);
+async function deleteCartInfo(client, userId) {
+  const query = "DELETE FROM cart WHERE user_id = $1";
+  const results = await client.query(query, [userId]);
   return results;
 }
 
@@ -1028,17 +1038,16 @@ function isInvalidSearchQuery(query, type) {
  * If the query is empty, it searches for products based on the type only.
  * If the query is not empty, it searches based on both the query and type.
  *
- * @param {Object} db - The database connection object.
  * @param {string} query - The search query entered by the user (can be empty).
  * @param {string} type - The type/category of the products (e.g., blush).
  * @returns {Promise} - A promise that resolves to the search results from the database.
  */
-async function searchProducts(db, query, type) {
+async function searchProducts(query, type) {
   let results;
   if (query === "") {
-    results = await searchByType(db, type);
+    results = await searchByType(type);
   } else {
-    results = searchByQueryAndType(db, query, type);
+    results = await searchByQueryAndType(query, type);
   }
   return results;
 }
@@ -1047,57 +1056,57 @@ async function searchProducts(db, query, type) {
  * Searches for products based on the given query and type.
  * If the query is an empty string, it performs a search based on the type only.
  * If the query is not empty, it performs a search using both the query and type.
- * @param {Object} db - The database connection object.
  * @param {string} type - The type/category of the products (e.g., makeup).
  * @returns {Promise} - A promise that resolves to the search results from the database.
  */
-async function searchByType(db, type) {
+async function searchByType(type) {
   let results;
   if (type === "all") {
-    results = await db.all("SELECT * FROM products");
+    results = await pool.query("SELECT * FROM products");
   } else {
-    results = await db.all("SELECT * FROM products WHERE type = ?", type);
+    results = await pool.query("SELECT * FROM products WHERE type = $1", [type]);
   }
-  return results;
+  return results.rows;
 }
 
 /**
  * Searches for products based on the provided query and type.
  * If the type is "all", it searches for products where the name or brand matches the query.
  * If the type is not "all", it also filters by product type in addition to name or brand.
- * @param {Object} db - The database connection object.
  * @param {string} searchQuery - The search query entered by the user.
  * @param {string} type - The type/category of the products (e.g., electronics, clothing, or
  *                        "all" for all product types).
  * @returns {Promise} - A promise that resolves to the search results from the database.
  */
-async function searchByQueryAndType(db, searchQuery, type) {
+async function searchByQueryAndType(searchQuery, type) {
   let results;
   if (type === "all") {
-    let query = `SELECT * FROM products WHERE name LIKE ? OR brand LIKE ?`;
-    results = await db.all(query, [`%${searchQuery}%`, `%${searchQuery}%`]);
+    const query = `SELECT * FROM products WHERE name LIKE $1 OR brand LIKE $2`;
+    results = await pool.query(query, [`%${searchQuery}%`, `%${searchQuery}%`]);
   } else {
-    results = await db.all(
-      "SELECT * FROM products WHERE (name LIKE ? OR brand LIKE ?) AND type = ?",
+    results = await pool.query(
+      "SELECT * FROM products WHERE (name LIKE $1 OR brand LIKE $2) AND type = $3",
       [`%${searchQuery}%`, `%${searchQuery}%`, type]
     );
   }
-  return results;
+  return results.rows;
 }
 
 /**
  * Checks for duplicate user fields in the database.
  * Verifies if the provided username already exists in the `user` table.
  *
- * @param {object} db - The database connection object.
  * @param {string} username - The username to check for duplicates.
  * @returns {Promise<string|null>} - Returns the name of the duplicate field
  *                                   ("username", "email", or "phone number"),
  *                                   or `null` if no duplicates are found.
  */
-async function findDuplicateUserField(db, username) {
-  let usernameResult = await db.all("SELECT * FROM user WHERE username = ?", username);
-  if (usernameResult.length > 0) {
+async function findDuplicateUserField(username) {
+  const usernameResult = await pool.query(
+    "SELECT * FROM users WHERE username = $1",
+    [username]
+  );
+  if (usernameResult.rows.length > 0) {
     return "username";
   }
 
@@ -1107,21 +1116,20 @@ async function findDuplicateUserField(db, username) {
 /**
  * Checks if a given input is unique for a specific user field and updates the user's
  * information if valid.
- * @param {Object} db - The database connection object.
  * @param {string} column - The user field/column to be updated (e.g., 'username', 'email', etc.).
  * @param {string} input - The new input value to be checked and updated.
  * @param {number} userId - The unique user ID for identifying the user whose information is
  *                           to be updated.
  * @returns {Object} - An object containing success and failure messages.
- */async function checkAndUpdateUserInfo(db, column, input, userId) {
-  const checkUniqueQuery = `SELECT * FROM user WHERE ${column} = ?`;
-  const checkUniqueResults = await db.all(checkUniqueQuery, input);
+ */async function checkAndUpdateUserInfo(column, input, userId) {
+  const checkUniqueQuery = `SELECT * FROM users WHERE ${column} = $1`;
+  const checkUniqueResults = await pool.query(checkUniqueQuery, [input]);
 
-  if (checkUniqueResults.length > 0) {
+  if (checkUniqueResults.rows.length > 0) {
     return {success: null, fail: `Please enter a different ${column}`};
   }
-  const updateQuery = `UPDATE user SET ${column} = ? WHERE user_id = ?`;
-  await db.run(updateQuery, [input, userId]);
+  const updateQuery = `UPDATE users SET ${column} = $1 WHERE user_id = $2`;
+  await pool.query(updateQuery, [input, userId]);
   return {success: `Successfully updated ${column} information!`, fail: null};
 }
 
@@ -1136,22 +1144,21 @@ async function hashPassword(password) {
 
 /**
  * Validates a user's credentials by checking the username and password against the database.
- * @param {object} db - The database connection object.
  * @param {string} username - The username provided by the user.
  * @param {string} password - The password provided by the user.
  * @returns {Promise<object|null>} - Returns the user object if credentials are valid, otherwise
  *                                   `null`.
  */
-async function validateUser(db, username, password) {
-  const results = await db.all(
-    "SELECT * FROM user WHERE username = ?",
-    username
+async function validateUser(username, password) {
+  const results = await pool.query(
+    "SELECT * FROM users WHERE username = $1",
+    [username]
   );
-  if (results.length === 0) {
+  if (results.rows.length === 0) {
     return null;
   }
 
-  const user = results[0];
+  const user = results.rows[0];
   const passwordMatches = await bcrypt.compare(password, user.password);
   return passwordMatches ? user : null;
 }
@@ -1180,19 +1187,6 @@ function generateConfirmationNumber() {
   }
 
   return confirmationNumber;
-}
-
-/**
- * Establishes a database connection to the database and returns the database object.
- * Any errors that occur should be caught in the function that calls this one.
- * @returns {Object} - The database object for the connection.
- */
-async function getDBConnection() {
-  const db = await sqlite.open({
-    filename: 'cmbeauty.db', // THIS IS NOT THE TABLE NAME
-    driver: sqlite3.Database
-  });
-  return db;
 }
 
 app.use(express.static('public'));
