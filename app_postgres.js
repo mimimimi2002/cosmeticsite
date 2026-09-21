@@ -40,9 +40,16 @@ app.use(multer().none());
  */
 app.get("/products", async (req, res) => {
   let category = req.query.category;
+  const cacheKey = category ? `products:${category}` : "products";
+
+  const { resCode, body } = await cache_client.get(cacheKey);
+
+  if (resCode === ResponseCode.OK) {
+    const products = JSON.parse(body);
+    return res.json({ products });
+  }
 
   try {
-
     let results;
 
     if (category) {
@@ -54,7 +61,19 @@ app.get("/products", async (req, res) => {
       results = await pool.query("SELECT * FROM products");
     }
 
-    res.json({ products: results.rows });
+    const products = results.rows;
+
+    await cache_client.set(
+      cacheKey,
+      JSON.stringify(products)
+    );
+
+    await cache_client.pexpire(
+      cacheKey,
+      100000,
+    );
+
+    res.json({ products });
 
   } catch (err) {
     res.status(500).send("Something is wrong with server");

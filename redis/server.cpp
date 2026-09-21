@@ -63,7 +63,7 @@ static void fd_set_nb(int fd) {
 }
 
 // 4096 bytes message
-static constexpr size_t k_max_msg = 4096;
+static constexpr size_t k_max_msg = 64 * 1024;
 const size_t k_max_args = 200 * 1000;
 
 // monotonic (never reverse) timer
@@ -589,7 +589,7 @@ static bool try_fill_buffer(Conn *conn) {
     return false;
   }
   conn->rbuf_size += (size_t)rv;
-  assert(conn->rbuf_size <= sizeof(conn->rbuf) - conn->rbuf_size);
+  assert(conn->rbuf_size <= sizeof(conn->rbuf));
   // Try to process requests one by one.
   // Why is there a loop? Please read the explanation of "pipelining".
 
