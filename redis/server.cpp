@@ -308,14 +308,14 @@ static uint32_t do_get(const std::vector<std::string> &cmd, uint8_t *res, uint32
     return out_res(res, reslen, RES_WRONG_TYPE);
   }
   std::string &val = g_data.db[cmd[1]].value;
-  return out_res_str(res, reslen, RES_OK, "get " + val);
+  return out_res_str(res, reslen, RES_OK, val);
 }
 
 static uint32_t do_set(const std::vector<std::string> &cmd, uint8_t *res, uint32_t *reslen) {
   Entry &ent = g_data.db[cmd[1]];
   ent.type = T_STRING;
   ent.value = cmd[2];
-  return out_res_str(res, reslen, RES_OK, "set " + cmd[2]);
+  return out_res_str(res, reslen, RES_OK, cmd[2]);
 }
 
 static uint32_t do_expire(const std::vector<std::string> &cmd, uint8_t *res, uint32_t *reslen) {
@@ -656,7 +656,7 @@ static int32_t accept_new_conn(std::vector<Conn *> &fd2conn, int fd) {
   return 0;
 }
 
-const uint64_t k_idle_timeout_ms = 5 * 1000;
+const uint64_t k_idle_timeout_ms = 600 * 1000;
 
 static void conn_done(Conn *conn) {
   g_data.fd2conn[conn->fd] = NULL;
