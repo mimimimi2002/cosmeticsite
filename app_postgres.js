@@ -1,7 +1,24 @@
 "use strict";
 
+const ResponseCode = {
+  OK: 0,
+  ERR: 1,
+  NOT_FOUND: 2,
+  WRONG_TYPE: 3,
+  INVALID_ARG: 4,
+};
+
 const express = require("express");
 const app = express();
+
+const net = require("net");
+
+const cache = net.createConnection({
+  host: "127.0.0.1",
+  port : 1234
+})
+
+const cache_client = require("./cache_client");
 
 const { Pool } = require("pg");
 
@@ -89,24 +106,42 @@ app.get("/search", async (req, res) => {
 app.get("/products/:id", async (req, res) => {
   const productId = req.params.id;
 
-  try {
-    const query = `
-      SELECT * FROM products p
-      JOIN inventory i ON i.product_id = p.product_id
-      WHERE p.product_id = $1
-    `;
+  const { resCode, body } = await cache_client.get(`product:${productId}`);
 
-    const result = await pool.query(query, [productId]);
+  if (resCode === ResponseCode.OK) {
+    const product = JSON.parse(body);
+    return res.json(product);
+  } else {
+    try {
+      const query = `
+        SELECT * FROM products p
+        JOIN inventory i ON i.product_id = p.product_id
+        WHERE p.product_id = $1
+      `;
 
-    if (result.rows.length > 0) {
-      res.json(result.rows[0]);
-    } else {
-      res.status(USER_PARAMETER_ERROR).type("text")
-        .send("Invalid Product ID");
+      const result = await pool.query(query, [productId]);
+
+      if (result.rows.length > 0) {
+        const product = result.rows[0];
+        await cache_client.set(
+          `product:${productId}`,
+          JSON.stringify(product)
+        );
+
+        await cache_client.pexpire(
+          `product:${productId}`,
+          10000,
+        );
+
+        return res.json(product);
+      } else {
+        res.status(USER_PARAMETER_ERROR).type("text")
+          .send("Invalid Product ID");
+      }
+    } catch (err) {
+      res.status(SERVER_ERROR).type("text")
+        .send("Something is wrong with server. Please try again");
     }
-  } catch (err) {
-    res.status(SERVER_ERROR).type("text")
-      .send("Something is wrong with server. Please try again");
   }
 });
 
