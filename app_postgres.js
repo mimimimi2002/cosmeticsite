@@ -130,7 +130,7 @@ app.get("/products/:id", async (req, res) => {
 
         await cache_client.pexpire(
           `product:${productId}`,
-          10000,
+          100000,
         );
 
         return res.json(product);
