@@ -23,7 +23,8 @@ https://github.com/user-attachments/assets/c3ef1c43-2e84-45a1-951f-3950d88fe61b
 |-------|------------|
 | Frontend | HTML / CSS / Vanilla JavaScript |
 | Backend | Node.js, Express |
-| Database | SQLite (`cmbeauty.db`) |
+| Database | SQLite (`cmbeauty.db`), PostgreSQL (`app_postgres.js`) |
+| Cache | Custom Redis-like server (`redis/server.cpp`) via `cache_client.js` |
 | Auth | bcrypt (password hashing), session IDs |
 | File upload | multer |
 
@@ -50,23 +51,29 @@ PORT=9000 node app.js
 
 ```
 .
-├── app.js              # Express backend (API server)
-├── cmbeauty.db         # SQLite database file
-├── tables.sql          # Table definitions (CREATE statements)
-├── APIDOC.md           # Detailed Web API documentation
+├── app.js                    # Express backend (SQLite, no cache)
+├── app_postgres.js           # Express backend (PostgreSQL + cache)
+├── app_postgres_no_cache.js  # Same as app_postgres.js, but no cache
+├── cache_client.js           # TCP client for the custom cache server
+├── cmbeauty.db               # SQLite database file
+├── tables.sql                # Table definitions (CREATE statements)
+├── APIDOC.md                 # Detailed Web API documentation
 ├── package.json
-├── public/             # Frontend
-│   ├── index.html      # Home (product listing)
+├── redis/                    # Custom in-memory cache server
+│   ├── server.cpp
+│   └── client.cpp
+├── public/                   # Frontend
+│   ├── index.html            # Home (product listing)
 │   ├── index.js
-│   ├── sign-in.html    # Login / registration
+│   ├── sign-in.html          # Login / registration
 │   ├── sign-in.js
-│   ├── setting.html    # User settings
+│   ├── setting.html          # User settings
 │   ├── setting.js
-│   ├── shopping-history.html  # Order history
+│   ├── shopping-history.html # Order history
 │   ├── shopping-history.js
 │   ├── style.css
-│   └── img/            # Product & site images
-└── data/               # Screenshots and other assets
+│   └── img/                  # Product & site images
+└── data/                     # Screenshots and other assets
 ```
 
 ## Database
@@ -109,3 +116,54 @@ All APIs are implemented in `app.js`. For request formats, parameters, and examp
 | DELETE | `/carts/:productId` | Remove an item from the cart |
 | POST | `/purchases` | Purchase the items in the cart |
 | GET | `/histories` | Get order history |
+
+## Cache
+
+`app_postgres.js` caches product reads in a custom Redis-like server (`redis/server.cpp`) over a **single persistent TCP connection** (`cache_client.js`, port `1234`).
+
+Cached endpoints:
+
+| Endpoint | Cache key |
+|----------|-----------|
+| `GET /products` | `products` (or `products:{category}` when filtered) |
+| `GET /products/:id` | `product:{id}` |
+
+On a hit, the handler returns the cached JSON. On a miss, it queries PostgreSQL, then `SET` + `PEXPIRE` (TTL 100000 ms). After a successful purchase, `product:{id}` entries for bought items are deleted so stock does not stay stale.
+
+`app_postgres_no_cache.js` is the same API against PostgreSQL, with all cache reads and writes removed.
+
+Run the cache server first, then the cached app:
+
+```bash
+# cache server listens on 1234
+# then:
+node app_postgres.js
+```
+
+For a no-cache comparison:
+
+```bash
+node app_postgres_no_cache.js
+```
+
+A single browser click is usually one (or a few sequential) HTTP requests. In that case a cache hit skips PostgreSQL and tends to feel faster. That is **one-request latency**, not the same as throughput under many concurrent clients.
+
+The Node process uses **one TCP connection** to the cache and pipelines `GET`s on it. The cache server itself is **single-threaded**. Extra cache TCP connections would not add real parallelism there; they mostly add `poll` overhead. Under high concurrency, that one cache connection becomes a queue, while PostgreSQL can use a connection pool.
+
+## Load test (`GET /products/1`)
+
+Compared `app_postgres_no_cache.js` (No Cache) and `app_postgres.js` (Cache ×1, one TCP connection to the cache) with autocannon:
+
+```bash
+npx autocannon -c 1 -d 30 http://localhost:8000/products/1
+npx autocannon -c 30 -d 30 http://localhost:8000/products/1
+```
+
+| Concurrency |        No Cache |        Cache ×1 | Result             |
+| ----------: | --------------: | --------------: | ------------------ |
+|       `c=1` |     3,461 req/s | **3,991 req/s** | Cache **+15.3%**   |
+|      `c=30` | **7,514 req/s** |     5,050 req/s | Cache **−32.8%**   |
+
+- **`c=1`**: Cache is faster. Matches the UI case (one request at a time).
+- **`c=30`**: No-cache PostgreSQL is faster. Concurrent requests serialize on the single cache TCP connection and single-threaded cache server, so throughput drops even though a lone request was cheaper.
+
