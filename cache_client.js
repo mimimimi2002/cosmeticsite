@@ -12,6 +12,7 @@ class CacheClient {
     });
 
     this.pendingRequests = [];
+    this.receiveBuffer = Buffer.alloc(0);
 
     this.socket.on("connect", () => {
       console.log(
@@ -31,13 +32,36 @@ class CacheClient {
       console.error("Cache server error:", err.message);
     });
 
-    this.socket.on("data", (data) => {
-      const response =  this.decodeResponse(data);
-      const pending = this.pendingRequests.shift();
-      if (pending) {
-        pending.resolve(response);
+    this.socket.on("data", (chunk) => {
+      this.receiveBuffer = Buffer.concat([
+        this.receiveBuffer,
+        chunk
+      ]);
+
+      while(this.receiveBuffer.length >= 4) {
+        const len = this.receiveBuffer.readUInt32LE(0);
+        const packetLength = 4 + len;
+
+        // if it did not receive the data entirely
+        if (this.receiveBuffer.length < packetLength) {
+          break;
+        }
+
+        // get entire on response
+        const packet = this.receiveBuffer.subarray(0, packetLength);
+
+        // save the rest
+        this.receiveBuffer = this.receiveBuffer.subarray(packetLength);
+
+        const response = this.decodeResponse(packet);
+
+        const pending = this.pendingRequests.shift();
+        if (pending) {
+          pending.resolve(response);
+        }
+
+        console.log("response: ", response);
       }
-      console.log("response: ", response);
     })
   }
 
