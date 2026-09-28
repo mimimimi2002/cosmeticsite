@@ -2,7 +2,7 @@
 
 A full-stack e-commerce site for cosmetics. Users can browse and search products, register / log in, manage a cart, check out, post reviews, and view order history.
 
-The frontend is vanilla HTML / CSS / JavaScript. The backend is Node.js (Express). Data can live in **SQLite** (`app.js`) or **PostgreSQL** (`app_postgres.js` / `app_postgres_no_cache.js`). The PostgreSQL app can optionally sit in front of a **custom in-memory cache** (`redis/server.cpp`).
+The frontend is vanilla HTML / CSS / JavaScript. The backend is Node.js (Express). Data can live in **SQLite** (`app.js`) or **PostgreSQL** (`app_postgres.js` / `app_postgres_no_cache.js` / `app_postgres_s3_profile.js`). The PostgreSQL app can optionally sit in front of a **custom in-memory cache** (`redis/server.cpp`). Profile-image upload to **Amazon S3** is implemented in `app_postgres_s3_profile.js`.
 
 ## Demo
 
@@ -18,7 +18,7 @@ https://github.com/user-attachments/assets/c3ef1c43-2e84-45a1-951f-3950d88fe61b
 - **Checkout** — buy cart items, deduct funds, decrease inventory
 - **Reviews** — ratings and comments
 - **Order history** — past purchases
-- **User settings** — update profile fields (`PATCH /users`)
+- **User settings** — update profile fields (`PATCH /users`); optional custom icon uploaded to S3
 
 ## Tech Stack
 
@@ -30,12 +30,14 @@ https://github.com/user-attachments/assets/c3ef1c43-2e84-45a1-951f-3950d88fe61b
 | Cache | Custom Redis-like TCP server (`redis/server.cpp`) via `cache_client.js` |
 | Auth | bcrypt, session IDs in `sessions` |
 | Uploads | multer (form fields; `none()`) |
+| Object storage | Amazon S3 (`ap-northeast-1`), presigned PUT/GET (`app_postgres_s3_profile.js`) |
 
 ## Requirements
 
 - Node.js 18+
 - npm packages: `express`, `multer`, `bcrypt`, plus `sqlite` + `sqlite3` (SQLite app) or `pg` (PostgreSQL apps)
-- PostgreSQL 14+ (for `app_postgres.js` / `app_postgres_no_cache.js`)
+- PostgreSQL 14+ (for `app_postgres.js` / `app_postgres_no_cache.js` / `app_postgres_s3_profile.js`)
+- For S3 profile upload: `@aws-sdk/client-s3`, `@aws-sdk/s3-request-presigner`, `dotenv`; an S3 bucket in **ap-northeast-1**; AWS credentials on the machine that runs the app
 - A C++ compiler (to build the cache server)
 - Python 3, with `psycopg` if seeding PostgreSQL
 
@@ -91,13 +93,29 @@ node app_postgres.js
 
 `cache_client.js` connects to `127.0.0.1:1234` when the app process starts.
 
+### PostgreSQL with cache and S3 profile images (`app_postgres_s3_profile.js`)
+
+Same as `app_postgres.js`, plus avatar upload. The S3 client region is hardcoded to **ap-northeast-1**.
+
+```bash
+export S3_BUCKET_NAME="your-bucket-name"
+# credentials: AWS_ACCESS_KEY_ID / AWS_SECRET_ACCESS_KEY, or ~/.aws/credentials
+npm install express pg multer bcrypt dotenv @aws-sdk/client-s3 @aws-sdk/s3-request-presigner
+node app_postgres_s3_profile.js
+```
+
+`S3_BUCKET_NAME` can also be set in a local `.env` (loaded by `dotenv`). Cloning the repo does **not** include AWS keys; each developer needs their own credentials and bucket.
+
+The bucket must allow a browser `PUT` from the app origin (CORS), for example `http://localhost:8000`. Objects are **not** public; the app never sends the file through Express.
+
 ## Project Structure
 
 ```
 .
-├── app.js                    # Express + SQLite
-├── app_postgres.js           # Express + PostgreSQL + cache
-├── app_postgres_no_cache.js  # Same as app_postgres.js, no cache
+├── app.js                       # Express + SQLite
+├── app_postgres.js              # Express + PostgreSQL + cache
+├── app_postgres_no_cache.js     # Same as app_postgres.js, no cache
+├── app_postgres_s3_profile.js   # Same as app_postgres.js, plus S3 avatars
 ├── cache_client.js           # One persistent TCP client to the cache
 ├── schema_sqlite.sql
 ├── schema_posgres.sql        # PostgreSQL DDL
@@ -146,7 +164,7 @@ Seed scripts load `database/seed/products.csv` and `database/seed/inventory.csv`
 
 ## API Overview
 
-The same routes exist on `app.js`, `app_postgres.js`, and `app_postgres_no_cache.js`. Older examples live in [APIDOC.md](APIDOC.md); the table below matches the current handlers.
+The same product / account / cart routes exist on `app.js`, `app_postgres.js`, `app_postgres_no_cache.js`, and `app_postgres_s3_profile.js`. Older examples live in [APIDOC.md](APIDOC.md); the table below matches the current handlers. `POST /profile/presigned-url` exists only on `app_postgres_s3_profile.js`.
 
 Authenticated routes expect `Authorization: Bearer <session_id>`.
 
@@ -158,8 +176,9 @@ Authenticated routes expect `Authorization: Bearer <session_id>`.
 | POST | `/accounts` | Register |
 | POST | `/signin` | Log in; returns session ID |
 | POST | `/signout` | Log out |
-| GET | `/users/me` | Current user |
-| PATCH | `/users` | Update a profile field |
+| GET | `/users/me` | Current user (S3 avatars returned as a GetObject presigned URL) |
+| PATCH | `/users` | Update a profile field (`imgpath` stores the S3 key after an upload) |
+| POST | `/profile/presigned-url` | S3 app only: PutObject presigned URL + object `key` |
 | GET | `/reviews` | Reviews for `?id=` (product id) |
 | POST | `/reviews` | Submit a review |
 | GET | `/carts` | Cart (includes `stock`) |
@@ -168,6 +187,49 @@ Authenticated routes expect `Authorization: Bearer <session_id>`.
 | DELETE | `/carts/:productId` | Remove item |
 | POST | `/purchases` | Checkout |
 | GET | `/histories` | Order history |
+
+## S3 profile upload
+
+Used only by `app_postgres_s3_profile.js` (settings page, `public/setting.js`). The file never goes through the Node server. Express only signs URLs; the browser talks to S3.
+
+S3 has no real folders. The object key `avatars/{userId}/{uuid}.jpg` only *looks* like a path in the console. You do not create directories in the bucket first.
+
+Allowed `Content-Type` values: `image/jpeg`, `image/png`, `image/webp`.
+
+### Upload (presigned PUT)
+
+1. The user picks a file on **Account Information**. The preview `<img>` stays hidden until a file is chosen.
+2. The browser calls `POST /profile/presigned-url` with `{ contentType }` and the session Bearer token.
+3. The server builds key `avatars/{userId}/{uuid}.{ext}` and signs a **PutObject** URL (`expiresIn` **300** seconds). It returns `{ presignedUrl, key }` only — no GetObject URL at this step.
+4. The browser `PUT`s the file bytes to `presignedUrl` with the same `Content-Type`.
+5. The page shows a local `blob:` preview. Save has not run yet, so `users.imgpath` is unchanged.
+
+### Save and display (presigned GET)
+
+6. **Save Changes** sends `PATCH /users` with `column=imgpath` and `input` equal to the S3 `key` (preset icons still save a local path such as `/img/icondefault.png`).
+7. `GET /users/me` reads `imgpath`. If it is an S3 key (or an `amazonaws.com` URL), the handler signs a **GetObject** URL (`expiresIn` **3600** seconds) and returns that as `imgpath`. Local preset paths are returned as-is.
+8. The settings page (and the home header) use that `imgpath` as the icon `src`.
+
+```
+browser                    Express                         S3
+   |                          |                             |
+   | POST /profile/presigned-url                            |
+   |------------------------->|                             |
+   |      { presignedUrl, key }                             |
+   |<-------------------------|                             |
+   | PUT object (file bytes)                                |
+   |------------------------------------------------------>|
+   | PATCH /users  imgpath = key                            |
+   |------------------------->|                             |
+   | GET /users/me            | GetObject presign           |
+   |------------------------->|                             |
+   |      { ..., imgpath: GET URL }                         |
+   |<-------------------------|                             |
+   | GET image                                              |
+   |------------------------------------------------------>|
+```
+
+Why two different signatures: the PUT URL is short-lived and only needed to upload. The object stays private, so a GET URL is created later, when something actually needs to *show* the image.
 
 ## Cache
 
