@@ -291,6 +291,16 @@ ul > div {
   width: 100%;
 }
 
+.upload-icon {
+  display: flex;
+  margin: 20px;
+}
+
+.upload-icon #iconPreview {
+  height: 100px;
+  width: 100px;
+}
+
 .cancel-save {
   display: flex;
 }

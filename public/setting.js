@@ -44,9 +44,10 @@
       }
     }
 
-    addEventToElements(".curr-info button", showEditForm);
-    addEventToElements(".cancel-save div", cancelEdit);
-    addEventToElements(".icon-img", selectIcon);
+    addClickEventToElements(".curr-info button", showEditForm);
+    addChangeEventToElements(".upload-icon", uploadIcon);
+    addClickEventToElements(".cancel-save div", cancelEdit);
+    addClickEventToElements(".icon-img", selectIcon);
   }
 
   /**
@@ -83,10 +84,22 @@
    * @param {string} selector - The selector for the elements.
    * @param {Function} eventHandler - The event handler function to attach.
    */
-  function addEventToElements(selector, eventHandler) {
+  function addClickEventToElements(selector, eventHandler) {
     let elements = qsa(selector);
     for (let i = 0; i < elements.length; i++) {
       elements[i].addEventListener("click", eventHandler);
+    }
+  }
+
+  /**
+   * Adds an event listener to multiple elements matched by a selector.
+   * @param {string} selector - The selector for the elements.
+   * @param {Function} eventHandler - The event handler function to attach.
+   */
+  function addChangeEventToElements(selector, eventHandler) {
+    let elements = qsa(selector);
+    for (let i = 0; i < elements.length; i++) {
+      elements[i].addEventListener("change", eventHandler);
     }
   }
 
@@ -102,6 +115,54 @@
       icons[i].classList.remove("selected");
     }
     this.classList.add("selected");
+  }
+
+  async function uploadIcon() {
+    let sessionId = sessionStorage.getItem("session_id");
+    if (sessionId) {
+
+      const input = document.getElementById("iconInput");
+
+      console.log(input)
+      const file = input.files[0];
+
+      if (!file) {
+        console.log("ファイルが選択されていません");
+        return;
+      }
+
+      try {
+        let response = await fetch("/profile/upload", {
+          method: "POST",
+          headers: {
+            "Authorization": `Bearer ${sessionId}`,
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify({
+            contentType: file.type,
+          }),
+        });
+        await statusCheck(response);
+        response = await response.json();
+
+        const uploadUrl = response["uploadUrl"];
+
+        await fetch(uploadUrl, {
+          method: "PUT",
+          headers: {
+            "Content-Type": file.type
+          },
+          body: file
+        });
+
+        const preview = document.getElementById("iconPreview");
+
+        const imageUrl = URL.createObjectURL(file);
+        preview.src = imageUrl;
+      } catch (err) {
+        handleError(err);
+      }
+    }
   }
 
   /**
