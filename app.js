@@ -1039,7 +1039,7 @@ async function searchProducts(db, query, type) {
   if (query === "") {
     results = await searchByType(db, type);
   } else {
-    results = searchByQueryAndType(db, query, type);
+    results = await searchByQueryAndType(db, query, type);
   }
   return results;
 }

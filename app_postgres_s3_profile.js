@@ -1267,11 +1267,11 @@ async function searchByType(type) {
 async function searchByQueryAndType(searchQuery, type) {
   let results;
   if (type === "all") {
-    const query = `SELECT * FROM products WHERE name LIKE $1 OR brand LIKE $2`;
+    const query = `SELECT * FROM products WHERE name ILIKE $1 OR brand ILIKE $2`;
     results = await pool.query(query, [`%${searchQuery}%`, `%${searchQuery}%`]);
   } else {
     results = await pool.query(
-      "SELECT * FROM products WHERE (name LIKE $1 OR brand LIKE $2) AND type = $3",
+      "SELECT * FROM products WHERE (name ILIKE $1 OR brand ILIKE $2) AND type = $3",
       [`%${searchQuery}%`, `%${searchQuery}%`, type]
     );
   }

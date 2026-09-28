@@ -130,7 +130,9 @@
 
     // get the all the products that match query and type
     try {
-      let response = await fetch(`/search?query=` + query + "&type=" + type);
+      let response = await fetch(
+        "/search?query=" + encodeURIComponent(query) + "&type=" + encodeURIComponent(type)
+      );
       await statusCheck(response);
       let data = await response.json();
       if (query === "") {
