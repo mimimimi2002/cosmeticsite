@@ -9,6 +9,9 @@ The frontend is vanilla HTML / CSS / JavaScript. The backend is Node.js (Express
 [https://github.com/user-attachments/assets/c3ef1c43-2e84-45a1-951f-3950d88fe61b
 ](https://drive.google.com/file/d/1aZP3SXXyeqfSM-UR60ycJ27ThczCbOk5/view?usp=sharing)
 
+<img width="800" height="auto" alt="スクリーンショット 2026-09-29 0 02 28" src="https://github.com/user-attachments/assets/c7a2ecb9-54f7-43f9-a918-ac6e55251a4a" />
+
+
 ## Features
 
 - **Product listing & category filtering** — browse by category (makeup, skincare, fragrance, hair, bath & body)
