@@ -274,6 +274,10 @@ app.get("/reviews", async (req, res) => {
 
     const reviews = result.rows;
 
+    for (let i = 0; i < reviews.length; i++) {
+      reviews[i].imgpath = await toDisplayImgpath(reviews[i].imgpath);
+    }
+
     let allratings = 0.0;
 
     for (let i = 0; i < reviews.length; i++) {
