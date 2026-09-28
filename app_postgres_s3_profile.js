@@ -356,9 +356,11 @@ app.get("/users/me", async (req, res) => {
   try {
     let userInfo = await getUserAllInfo(sessionId);
 
-    if (userInfo.length === 0) {
+    if (!userInfo) {
       return handleInvalidSession(res);
     }
+
+    userInfo.imgpath = await toDisplayImgpath(userInfo.imgpath);
     res.json(userInfo);
   } catch (err) {
     res.status(SERVER_ERROR).type("text")
@@ -569,7 +571,7 @@ app.patch("/users", async (req, res) => {
 /**
  * Upload user's profile.
  */
-app.post("/profile/upload", async (req, res) => {
+app.post("/profile/presigned-url", async (req, res) => {
 
   const authHeader = req.headers.authorization;
 
@@ -602,21 +604,19 @@ app.post("/profile/upload", async (req, res) => {
       "image/webp": "webp",
     }[contentType];
 
-    const key = `avatars/${userId}/${crypto.randomUUID()}.jpg`
+    const key = `avatars/${userId}/${crypto.randomUUID()}.${extension}`;
     const command = new s3_client.PutObjectCommand({
       Bucket: process.env.S3_BUCKET_NAME,
       Key: key,
       ContentType: contentType,
     })
 
-    const uploadUrl = await getSignedUrl(s3, command, {
+    const presignedUrl = await getSignedUrl(s3, command, {
       expiresIn: 300,
     });
 
-    console.log(uploadUrl);
-
     res.json({
-      uploadUrl,
+      presignedUrl,
       key
     });
   } catch (err) {
@@ -961,6 +961,55 @@ async function getUserAllInfo(sessionId) {
 
   const results = await pool.query(query, [sessionId]);
   return results.rows.length > 0 ? results.rows[0] : null;
+}
+
+function extractS3Key(imgpath) {
+  if (!imgpath || typeof imgpath !== "string") {
+    return null;
+  }
+
+  if (imgpath.startsWith("avatars/")) {
+    return imgpath;
+  }
+
+  if (imgpath.startsWith("/avatars/")) {
+    return imgpath.slice(1);
+  }
+
+  try {
+    const url = new URL(imgpath);
+    if (!url.hostname.includes("amazonaws.com")) {
+      return null;
+    }
+
+    const bucket = process.env.S3_BUCKET_NAME;
+    if (bucket && url.hostname.startsWith(`${bucket}.`)) {
+      return decodeURIComponent(url.pathname.replace(/^\/+/, ""));
+    }
+
+    const parts = url.pathname.replace(/^\/+/, "").split("/");
+    if (bucket && parts[0] === bucket) {
+      return decodeURIComponent(parts.slice(1).join("/"));
+    }
+  } catch (err) {
+    return null;
+  }
+
+  return null;
+}
+
+async function toDisplayImgpath(imgpath) {
+  const key = extractS3Key(imgpath);
+  if (!key || !process.env.S3_BUCKET_NAME) {
+    return imgpath;
+  }
+
+  const command = new s3_client.GetObjectCommand({
+    Bucket: process.env.S3_BUCKET_NAME,
+    Key: key
+  });
+
+  return getSignedUrl(s3, command, { expiresIn: 3600 });
 }
 
 /**

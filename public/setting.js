@@ -32,7 +32,7 @@
       "#user-settings-form textarea[name=address",
       "shipping_address"
     );
-    setupIconChangeEvent(".icon-change", ".selected", "imgpath");
+    setupIconChangeEvent(".icon-change", ".icon-container .selected", "imgpath");
 
     // if the user is sign in
     let sessionId = sessionStorage.getItem("session_id");
@@ -47,7 +47,7 @@
     addClickEventToElements(".curr-info button", showEditForm);
     addChangeEventToElements(".upload-icon", uploadIcon);
     addClickEventToElements(".cancel-save div", cancelEdit);
-    addClickEventToElements(".icon-img", selectIcon);
+    addClickEventToElements(".icon-container .icon-img", selectIcon);
   }
 
   /**
@@ -64,6 +64,8 @@
     });
   }
 
+  let uploadedIconKey = null;
+
   /**
    * Sets up an event listener for the icon change form to handle user icon updates.
    * @param {string} formSelector - The selector for the form element.
@@ -73,8 +75,13 @@
   function setupIconChangeEvent(formSelector, iconSelector, changeType) {
     let form = qs(formSelector);
     form.addEventListener("submit", async function(eve) {
-      let imgpath = qs(iconSelector).src;
-      imgpath = new URL(imgpath).pathname;
+      let imgpath = uploadedIconKey;
+
+      if (!imgpath) {
+        imgpath = qs(iconSelector).src;
+        imgpath = new URL(imgpath).pathname;
+      }
+
       await submitChanges(eve, changeType, imgpath);
     });
   }
@@ -110,11 +117,21 @@
    * This function is typically used as an event handler for click events on icon elements.
    */
   function selectIcon() {
-    let icons = qsa(".icon-img");
+    uploadedIconKey = null;
+    hideIconPreview();
+
+    let icons = qsa(".icon-container .icon-img");
     for (let i = 0; i < icons.length; i++) {
       icons[i].classList.remove("selected");
     }
     this.classList.add("selected");
+  }
+
+  function hideIconPreview() {
+    const preview = document.getElementById("iconPreview");
+    preview.src = "";
+    preview.classList.add("hidden");
+    document.getElementById("iconInput").value = "";
   }
 
   async function uploadIcon() {
@@ -122,32 +139,32 @@
     if (sessionId) {
 
       const input = document.getElementById("iconInput");
-
-      console.log(input)
       const file = input.files[0];
 
       if (!file) {
-        console.log("ファイルが選択されていません");
         return;
       }
 
       try {
-        let response = await fetch("/profile/upload", {
+        let response = await fetch("/profile/presigned-url", {
           method: "POST",
           headers: {
             "Authorization": `Bearer ${sessionId}`,
             "Content-Type": "application/json"
           },
           body: JSON.stringify({
-            contentType: file.type,
-          }),
+            contentType: file.type
+          })
         });
+
         await statusCheck(response);
-        response = await response.json();
 
-        const uploadUrl = response["uploadUrl"];
+        const data = await response.json();
 
-        await fetch(uploadUrl, {
+        const presignedUrl = data.presignedUrl;
+        const key = data.key;
+
+        const uploadResponse = await fetch(presignedUrl, {
           method: "PUT",
           headers: {
             "Content-Type": file.type
@@ -155,10 +172,18 @@
           body: file
         });
 
-        const preview = document.getElementById("iconPreview");
+        await statusCheck(uploadResponse);
 
-        const imageUrl = URL.createObjectURL(file);
-        preview.src = imageUrl;
+        uploadedIconKey = key;
+
+        let icons = qsa(".icon-container .icon-img");
+        for (let i = 0; i < icons.length; i++) {
+          icons[i].classList.remove("selected");
+        }
+
+        const preview = document.getElementById("iconPreview");
+        preview.src = URL.createObjectURL(file);
+        preview.classList.remove("hidden");
       } catch (err) {
         handleError(err);
       }
@@ -180,7 +205,9 @@
 
     // reset icon to defualt
     if (this.parentElement.parentElement.classList[0] === "icon-change") {
-      let icons = qsa(".icon-img");
+      uploadedIconKey = null;
+      hideIconPreview();
+      let icons = qsa(".icon-container .icon-img");
       for (let i = 0; i < icons.length; i++) {
         icons[i].classList.remove("selected");
       }
@@ -283,6 +310,11 @@
         qs(".status-message").textContent = successMessage;
 
         await getUserInfo();
+
+        if (uploadedIconKey) {
+          uploadedIconKey = null;
+          hideIconPreview();
+        }
       } catch (err) {
         handleError(err);
       }
